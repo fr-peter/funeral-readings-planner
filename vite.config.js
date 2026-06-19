@@ -11,6 +11,10 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  // Deploy base path. Defaults to '/' (root-served: user site or custom domain).
+  // For a GitHub Pages *project* site served under /<repo>/, set VITE_BASE to
+  // '/<repo>/'. The deploy workflow derives this from the repository name.
+  base: process.env.VITE_BASE || '/',
   // Prevent Vite pre-bundling @huggingface/transformers — it uses dynamic
   // imports for the WASM runtime that break under Vite's pre-bundle step.
   optimizeDeps: {

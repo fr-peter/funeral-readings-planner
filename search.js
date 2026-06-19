@@ -15,8 +15,10 @@ import { expandRef } from './books.js';
 // Model weights and WASM runtime are bundled under public/ — no network needed.
 env.allowRemoteModels = false;
 env.allowLocalModels  = true;
-env.localModelPath    = '/models/';
-env.backends.onnx.wasm.wasmPaths = '/wasm/';
+// Base-relative so the app works whether served at the domain root or under a
+// GitHub Pages project subpath (/<repo>/). BASE_URL is '/' by default.
+env.localModelPath    = import.meta.env.BASE_URL + 'models/';
+env.backends.onnx.wasm.wasmPaths = import.meta.env.BASE_URL + 'wasm/';
 
 const MODEL = 'Xenova/all-MiniLM-L6-v2';
 const DTYPE = 'q8';

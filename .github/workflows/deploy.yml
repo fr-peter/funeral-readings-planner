@@ -35,6 +35,11 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       - name: Build
         run: npm run build
+        env:
+          # Project Pages site is served under /<repo>/; build with that base so
+          # asset, model, and WASM paths resolve. (A user/org site or custom
+          # domain is root-served — drop this env there to build at base '/'.)
+          VITE_BASE: /${{ github.event.repository.name }}/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
