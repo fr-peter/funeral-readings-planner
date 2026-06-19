@@ -1,0 +1,1925 @@
+<!doctype html>
+<!--
+  Funeral Readings Planner: A resource for planning & printing Catholic funeral readings in Canada
+  Copyright (C) 2026 Fr Peter Do
+  
+  This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+  
+  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+  
+  You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <!-- Content-Security-Policy — defense-in-depth backstop for XSS. This is a pure
+       client-side app served from its own origin root; everything (scripts, the
+       onnxruntime WASM under /wasm/, model weights under /models/, fonts) is
+       self-hosted, so 'self' covers it with no external allowances.
+       - script-src 'self' 'wasm-unsafe-eval': our own bundles only; no inline
+         <script> (the help-popover handler was moved to /help-popover.js for
+         exactly this) and no inline event handlers. 'wasm-unsafe-eval' is the
+         minimal grant onnxruntime needs to instantiate its WASM (NOT full
+         'unsafe-eval'). worker-src/blob: cover any onnxruntime worker + the
+         export's Blob download URL.
+       - style-src 'unsafe-inline': required — drop-cap markup emits
+         style="--r-drop-offset:…" / style="${docVars}" into innerHTML. Style
+         injection is low-risk.
+       Delivered via <meta> because the intended host (GitHub Pages) can't set
+       response headers. frame-ancestors is omitted here as it's ignored in
+       <meta> — anti-framing needs a real header (or a CDN front). -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Funeral Readings Planner</title>
+  <!-- Favicons (the Juuji gospel cross, gold on the app's dark rounded square;
+       assets live in public/ and are copied verbatim to dist/ root). Modern
+       browsers take the scalable SVG; legacy browsers fall back to the .ico
+       (16/32/48 multi-res); iOS uses the apple-touch-icon; Android/installable
+       icons come from the web manifest (192 + 512 etc.). -->
+  <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <!-- Theme tokens (the customizable colour surface). Served verbatim from
+       public/ → dist/ so it's editable without a rebuild; loaded before the
+       component styles below. Consumed by both this file and mobile.css. -->
+  <link rel="stylesheet" href="/theme.css">
+  <style>
+/* EB Garamond regular — full OTF with smcp, c2sc, onum, liga */
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/EBGaramond12-Regular.otf') format('opentype');
+}
+/* EB Garamond italic */
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/EBGaramond12-Italic.otf') format('opentype');
+}
+/* Cormorant Garamond (Light/300) — used for drop caps. The Light file is mapped
+   into the weight-400 slot so weight-agnostic rules + document.fonts.load('1em …')
+   resolve to it unchanged. OFL — see public/fonts/licenses/Cormorant-OFL.txt. */
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('/fonts/CormorantGaramond-Light.woff2') format('woff2');
+}
+/* Gospel cross — a single glyph (the Juuji cross) remapped onto U+2720 MALTESE
+   CROSS, the character used in the gospel intro. ~2 KB subset; see
+   scripts/make-cross-font.py. The Juuji cross fills the full em, so size-adjust
+   shrinks it to fit the text — and because size-adjust only scales THIS font,
+   the fallback ✠ (when this font isn't applied) keeps its normal proportion.
+   The vertical placement is baked into the glyph outline, so it needs no
+   element-level offset that would disturb the fallback. */
+@font-face {
+  font-family: 'Gospel Cross';
+  font-style: normal;
+  font-weight: 400;
+  /* `block`: EB Garamond has no U+2720, so a fallback would be a machine-dependent
+     system ✠ — block hides the glyph briefly during load rather than flashing one. */
+  font-display: block;
+  src: url('/fonts/juuji-cross.woff2') format('woff2');
+  size-adjust: 85%;
+}
+
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Italic-cyrillicext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Italic-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Italic-greekext.woff2') format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Italic-greek.woff2') format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Italic-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Italic-latinext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Italic-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-cyrillicext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-greekext.woff2') format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-greek.woff2') format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-latinext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-cyrillicext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-greekext.woff2') format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-greek.woff2') format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-latinext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Source Sans 3';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/SourceSans3-Regular-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+
+
+    html { font-size: 133%; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Scrollbars ───────────────────────────────────────────────────────── */
+    * { scrollbar-color: var(--subtle) transparent; }
+    ::-webkit-scrollbar { width: 7px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--subtle); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    /* ── Theme tokens ──────────────────────────────────────────────────────────
+       The :root / html.light colour tokens now live in /theme.css (linked in
+       <head> above) — the editable customization surface. See todo.md
+       "Theming / embedding (parish sites)". */
+
+    body {
+      font-family: 'Source Sans 3', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      font-size: 18.5px;
+      line-height: 1.5;
+    }
+
+    /* ── App shell ────────────────────────────────────────────────────────── */
+    #app { display: flex; height: 100vh; }
+
+    /* ── Left panel ───────────────────────────────────────────────────────── */
+    #left {
+      width: 640px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    /* ── Context bar ──────────────────────────────────────────────────────── */
+    #context-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      padding: 14px 21px 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    #context-bar-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    #context-bar-label span {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #context-pills {
+      display: flex;
+      gap: 7px;
+    }
+    .ctx-pill {
+      flex: 1;
+      padding: 9px 7px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+      line-height: 1.3;
+      text-align: center;
+    }
+    .ctx-pill:hover { color: var(--text); border-color: var(--subtle); }
+    .ctx-pill.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--acc-text);
+    }
+
+    /* ── Season bar ──────────────────────────────────────────────────────── */
+    #season-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      padding: 14px 21px 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    #season-bar-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    #season-bar-label span {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #season-pills {
+      display: flex;
+      gap: 7px;
+    }
+    /* Season is meaningless for unbaptized children (single set of readings) —
+       grey it out and lock it, matching the mobile .m-disabled treatment. */
+    #season-bar.season-disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    /* ── Help popover ────────────────────────────────────────────────────── */
+    .help-btn {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1.5px dashed var(--subtle);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+      transition: color 0.15s, border-color 0.15s;
+      padding: 0;
+    }
+    .help-btn:hover { color: var(--text); border-color: var(--subtle); }
+    .help-btn.open  { color: var(--accent); border-color: var(--accent); border-style: solid; }
+
+    .help-popover-wrap {
+      position: relative;
+    }
+    .help-popover {
+      display: none;
+      position: fixed;  /* fixed + JS-positioned so card overflow:hidden can't clip it */
+      width: 260px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 15px;
+      font-size: 0.78rem;
+      line-height: 1.55;
+      color: var(--text);
+      box-shadow: 0 4px 16px rgba(0,0,0,.12);
+      z-index: 200;
+    }
+    .help-popover.open { display: block; }
+    .help-popover p { margin: 0 0 0.6em; }
+    .help-popover p:last-child { margin: 0; }
+
+    /* ── Settings toggle (toolbar gear button) ────────────────────────────── */
+    #settings-wrap {
+      position: relative;
+      margin-right: auto;
+    }
+
+    #settings-toggle {
+      display: flex; align-items: center; gap: 7px;
+      /* height matches the left pane's .fbar-btn; flex-centered so the gear icon
+         doesn't inflate the box the way vertical padding would. */
+      height: 36px; padding: 0 14px; font-size: 0.76rem; letter-spacing: 0.03em;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: transparent; color: var(--muted);
+      cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    #settings-toggle:hover,
+    #settings-toggle.open { color: var(--text); border-color: var(--subtle); }
+
+    .s-icon { display: inline-flex; }
+    .s-icon svg { width: 14px; height: 14px; }
+    .s-chevron {
+      display: inline-block; font-size: 0.6rem;
+      transition: transform 0.22s ease; margin-left: 1px;
+    }
+    #settings-toggle.open .s-chevron { transform: rotate(180deg); }
+
+    /* ── Settings panel (floating popover) ────────────────────────────────── */
+    #settings-panel {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      z-index: 200;
+      min-width: 250px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-6px);
+      transition: opacity 0.18s, transform 0.18s;
+    }
+    #settings-panel.open {
+      opacity: 1; pointer-events: auto; transform: translateY(0);
+    }
+
+    #settings-inner {
+      padding: 15px 19px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .s-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 13px;
+    }
+    .s-label {
+      font-size: 0.76rem;
+      color: var(--muted);
+    }
+
+    /* Toggle switch */
+    .sw { position: relative; width: 48px; height: 27px; flex-shrink: 0; }
+    .sw input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .sw-track {
+      position: absolute; inset: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .sw-track::before {
+      content: '';
+      position: absolute;
+      width: 19px; height: 19px;
+      top: 3px; left: 3px;
+      background: var(--subtle);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .sw input:checked ~ .sw-track { background: var(--accent); border-color: var(--accent); }
+    .sw input:checked ~ .sw-track::before { transform: translateX(21px); background: var(--acc-text); }
+
+    /* Segmented control */
+    .seg {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow: hidden;
+    }
+    .seg button {
+      flex: 1;
+      padding: 5px 13px;
+      font-size: 0.72rem;
+      letter-spacing: 0.03em;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .seg button + button { border-left: 1px solid var(--border); }
+    /* Two-option toggles: equal columns (sized to the wider label) so each label
+       centers in an equal half — otherwise content-sized buttons make the shorter
+       label (e.g. "Large") sit too close to the box edge. */
+    #seg-fontsize, #seg-color { display: grid; grid-template-columns: 1fr 1fr; }
+    /* Sex control: Male/Female equal (sized to the wider, Female); Unspecified auto (widest) */
+    #prayers-seg-sex { display: grid; grid-template-columns: 1fr auto 1fr; }
+    .seg button.active { background: var(--accent); color: var(--acc-text); }
+    .seg button:not(.active):hover { color: var(--text); }
+
+    /* ── Slot area ────────────────────────────────────────────────────────── */
+    #slot-area {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      padding: 0 21px;
+    }
+    #slot-area.search-active { padding: 0; }
+
+    #slot-content {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+    .slot-gap {
+      flex: 1;
+      min-height: 6px;
+      max-height: 1lh;
+    }
+    .slot-row { display: flex; flex-shrink: 0; }
+
+    .slot-btn {
+      flex: 1;
+      min-height: 84px;
+      padding: 0 24px;
+      font-size: 0.78rem;
+      border: 1px dashed var(--border);
+      border-radius: 11px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .slot-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    .slot-card {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--surface2);
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .slot-card:hover { border-color: var(--accent); }
+
+    .slot-card-top {
+      display: flex;
+      align-items: center;
+      min-height: 72px;
+      padding: 13px 13px 13px 24px;
+      gap: 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .slot-card-top:hover { background: var(--surface); }
+    .slot-card-bottom:hover { background: var(--surface); }
+    #title-card-top,
+    #prayers-card-top { min-height: 0; padding-top: 9px; padding-bottom: 9px; }
+    .title-verso-label {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.82rem; color: var(--muted);
+      cursor: pointer; user-select: none;
+    }
+    /* match the 7px gap the context bar puts between its label and the ? */
+    .title-verso-label + .help-popover-wrap { margin-left: 7px; }
+    .title-verso-label input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      flex-shrink: 0;
+      border: 1.5px solid var(--border);
+      border-radius: 3px;
+      background: transparent;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .title-verso-label input[type="checkbox"]:checked {
+      background: var(--accent);
+      border-color: var(--accent);
+      background-image: var(--check-svg);
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 70%;
+    }
+
+    .slot-card-top-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slot-card-bottom {
+      display: flex;
+      align-items: center;
+      border-top: 1px solid var(--border);
+      padding: 9px 13px 9px 24px;
+    }
+
+    .slot-filled-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .slot-filled-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .slot-filled-ref {
+      font-size: 0.78rem;
+      color: var(--text);
+      font-style: normal;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .slot-filled-id {
+      font-size: 0.68rem;
+      color: var(--muted);   /* real content (lectionary id) — small text needs AA 4.5 */
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .slot-x {
+      flex-shrink: 0;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--subtle);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; line-height: 1;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .slot-x:hover { background: var(--danger); color: var(--on-solid); border-color: var(--danger); }
+
+    .slot-confirm-inline {
+      display: flex; align-items: center; gap: 6px;
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      font-size: 0.72rem; color: var(--muted);
+      flex-shrink: 0;
+    }
+    .slot-confirm-yes, .slot-confirm-no {
+      padding: 2px 8px; border-radius: 5px; cursor: pointer;
+      font-family: inherit; font-size: inherit;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .slot-confirm-yes {
+      border: 1px solid var(--danger); background: transparent; color: var(--danger);
+    }
+    .slot-confirm-yes:hover { background: var(--danger); color: var(--on-solid); }
+    .slot-confirm-no {
+      border: 1px solid var(--border); background: transparent; color: var(--muted);
+    }
+    .slot-confirm-no:hover { border-color: var(--subtle); color: var(--text); }
+
+    .slot-reader-label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .slot-reader-input {
+      flex: 1;
+      padding: 0 0 0 8px;
+      font-size: 0.82rem;
+      font-family: inherit;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      outline: none;
+      min-width: 0;
+    }
+    .slot-reader-input::placeholder { color: var(--subtle); font-style: italic; }
+    /* Reader-clear is a minor, reversible field-clear — deliberately quieter than
+       the reading-remove × above it (which deletes the whole reading and keeps the
+       bordered-circle + red danger hover). No circle chrome, smaller, neutral hover
+       so the two stacked ×s can't be mistaken for each other. */
+    .slot-reader-clear {
+      visibility: hidden;
+      width: 22px; height: 22px;
+      border: none;
+      color: var(--subtle);
+      font-size: 0.95rem;
+    }
+    .slot-reader-clear.visible { visibility: visible; }
+    .slot-reader-clear:hover { background: transparent; color: var(--text); border-color: transparent; }
+
+    /* ── Search view ──────────────────────────────────────────────────────── */
+    #search-view {
+      display: flex; flex-direction: column;
+      flex: 1; overflow: hidden; gap: 11px;
+      padding: 13px 21px 21px;
+    }
+    #search-head { display: flex; align-items: center; gap: 11px; }
+    #search-head-spacer { width: 34px; flex-shrink: 0; }
+
+    #back-btn {
+      width: 34px; height: 34px; flex-shrink: 0;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: transparent; color: var(--muted);
+      cursor: pointer; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    #back-btn:hover { color: var(--text); border-color: var(--subtle); }
+    #back-btn::before {
+      content: '';
+      display: block;
+      width: 8px; height: 8px;
+      border-top: 1.5px solid currentColor;
+      border-right: 1.5px solid currentColor;
+      transform: rotate(-135deg) translate(-1px, 1px);
+    }
+
+    #search-title {
+      font-size: 0.72rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      flex: 1; text-align: center;
+    }
+
+    #search-input-wrap { position: relative; }
+    #search-input {
+      width: 100%; padding: 11px 40px 11px 16px;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--surface2); color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #search-input:focus { border-color: var(--accent); }
+    #search-input::placeholder { color: var(--subtle); font-style: italic; }
+    /* Suppress the machine-dependent native search-clear glyph in favour of our own. */
+    #search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+    /* Clearing the query is a minor, reversible field-clear — styled like
+       .slot-reader-clear (quiet, borderless, neutral hover), not the bordered
+       red-danger .slot-x used for destructive removal. Shown only when non-empty. */
+    .search-clear {
+      position: absolute; top: 50%; right: 7px; transform: translateY(-50%);
+      width: 26px; height: 26px;
+      display: none; align-items: center; justify-content: center;
+      border: none; background: transparent;
+      color: var(--subtle); font-size: 1.05rem; line-height: 1;
+      cursor: pointer; border-radius: 50%;
+      transition: color 0.15s;
+    }
+    .search-clear.visible { display: flex; }
+    .search-clear:hover { color: var(--text); }
+
+    #search-status { display: none; }
+
+    #search-results {
+      flex: 1; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+
+    .result-card {
+      padding: 12px 15px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: transparent;
+      cursor: pointer; text-align: left;
+      transition: border-color 0.12s, background 0.12s;
+      width: 100%;
+    }
+    .result-card:hover { border-color: var(--subtle); background: var(--surface2); }
+    .result-card.previewing { border-color: var(--accent); background: var(--surface2); }
+
+    .rc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .rc-ref { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+    .rc-cur { color: var(--muted); font-weight: 400; font-size: 0.82em; }
+    .rc-id  { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+    .rc-excerpt {
+      /* Trimmed to two whole-word lines after layout by fitExcerpts() (mirrors
+         mobile), so no -webkit-line-clamp — that would break mid-word. */
+      font-size: 0.74rem; color: var(--muted);
+      margin-top: 4px; line-height: 1.45;
+    }
+
+    #accept-btn {
+      padding: 12px;
+      font-size: 0.78rem; letter-spacing: 0.04em;
+      border: 1px solid var(--confirm);
+      border-radius: 11px;
+      /* Filled when enabled so the primary action reads as a button to press,
+         not a greyed-out outline. Discoverability: users were missing it. */
+      background: var(--confirm); color: var(--on-solid);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, opacity 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    /* Darken on hover, darken more on press — the idiomatic filled-button feel
+       (color-mix keeps the white label pure and works for both themes). */
+    #accept-btn:not(:disabled):hover {
+      background: color-mix(in srgb, var(--confirm) 90%, black);
+      border-color: color-mix(in srgb, var(--confirm) 90%, black);
+    }
+    #accept-btn:not(:disabled):active {
+      background: color-mix(in srgb, var(--confirm) 82%, black);
+      border-color: color-mix(in srgb, var(--confirm) 82%, black);
+    }
+    #accept-btn:focus-visible { outline: 2px solid var(--confirm); outline-offset: 2px; }
+    /* Disabled keeps a dim GREEN outline rather than greying out: it advertises
+       "the confirm action lives here" before a reading is picked (discoverability),
+       then fills solid once enabled. Outline→fill tells the story; the bump from
+       0.3 makes the green actually visible as a cue. */
+    #accept-btn:disabled {
+      opacity: 0.45; cursor: default;
+      background: transparent; border-color: var(--confirm); color: var(--confirm);
+    }
+
+    /* ── Right panel ──────────────────────────────────────────────────────── */
+    #right {
+      flex: 1; display: flex; flex-direction: column;
+      overflow: hidden; background: var(--bg);
+    }
+
+    #preview-toolbar {
+      display: flex; align-items: center; justify-content: flex-end;
+      position: relative;
+      /* Vertical padding tuned so this bar's bottom border lines up with the
+         left pane's #funeral-bar separator (both panes start at top 0;
+         buttons inside are 36px tall, matching .fbar-btn). */
+      padding: 10px 27px;
+      border-bottom: 1px solid var(--border);
+      gap: 11px; flex-shrink: 0;
+    }
+
+    #preview-title {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      font-size: 0.82rem; font-weight: 600;
+      color: var(--muted); letter-spacing: 0.04em;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    #print-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      height: 36px; padding: 0 21px; font-size: 0.76rem;   /* height matches .fbar-btn */
+      border: 1px solid var(--border); border-radius: 8px;
+      background: transparent; color: var(--muted);
+      cursor: pointer; letter-spacing: 0.03em;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    #print-btn:hover { color: var(--text); border-color: var(--subtle); }
+    #print-btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+    #print-btn svg { width: 15px; height: 15px; flex: 0 0 auto; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+    #preview-scroll { flex: 1; overflow-y: auto; overflow-anchor: none; padding: 2.5rem 2.5rem 1.5rem; scrollbar-gutter: stable; }
+
+    /* ── Preview document ─────────────────────────────────────────────────── */
+    #preview-doc {
+      /* Body point size; leading auto-derives at the 17/14 ratio. Set from the
+         Normal/Large font-size toggle (state.fontSize); default = Normal (14pt). */
+      --doc-pt: 14pt;
+      /* Fixed reference (always the Normal 14pt doc scale) for editing-chrome
+         that should NOT grow with the font-size toggle. */
+      --ui-fs: calc(14pt * 4 / 3);
+      max-width: 28em;
+      margin: 0 auto;
+      font-family: 'EB Garamond', Georgia, 'Palatino Linotype', serif;
+      font-size: calc(var(--doc-pt) * 4 / 3); line-height: calc(var(--doc-pt) * 17 / 14 * 4 / 3);
+      font-variant-numeric: oldstyle-nums;
+      font-variant-ligatures: common-ligatures;
+    }
+    html.light #preview-doc { color: var(--doc-ink); }
+    html.dark  #preview-doc { color: var(--text); }
+
+    /* ── Document typography ──────────────────────────────────────────────── */
+    .sc { font-variant-caps: small-caps; font-feature-settings: "smcp" 1; letter-spacing: 0.025em; }
+
+    /* ── Drop cap ─────────────────────────────────────────────────────────── */
+    .r-drop-follow {
+      font-variant-caps: small-caps;
+      font-feature-settings: "smcp" 1;
+      letter-spacing: 0.025em;
+    }
+
+    /* Drop cap — floated span. Font metrics, MEASURED in-browser (canvas ink +
+       CSS baseline probe; see tmp/measure-cormorant.mjs, tmp/measure-extra.mjs):
+         Cormorant Garamond Light: cap 0.625, ascent 0.820 (baseline-from-em-top
+           under line-height:1); J descender 0.250, Q descender 0.1875
+         EB Garamond body: cap 0.658, 'l' ascender 0.720, p/g descender 0.2975
+
+       Reference lines (body em; 1 lh = 17/14, half-leading = 3/28; from line-1
+       line-box top):
+         line-1 'l'-top   = line1base − 0.720 = 0.097   (cap target; an ascender,
+                            ~2px above the body cap-top, is what reads as "full")
+         line-2 baseline  = 17/14 + 3/28 + 0.710 = 2.0314   (default-cap baseline)
+         line-2 desc-bot  = 2.0314 + 0.2975   = 2.329    (J/Q tail target)
+
+       Unknowns (font-size, margin-top) solved from the model
+         baseline = fs*(mt + ascent);  cap-top = baseline − fs*cap
+       (Cormorant's ascent 0.820 ≫ the old display font's 0.725 — why the pre-swap
+       margin left the cap ~0.29em too low.)
+
+       Default (non-descending caps A–Z except J, Q): baseline on line-2 baseline,
+       cap-top ~1.5px shy of the line-1 'l'-top (sitting at the 'l' looked a touch
+       tall against the body, so the cap is sized down ~0.06em of cap-height).
+         font-size 2.999em → cap-height 0.625*2.999 = 1.874; cap-top 2.0314−1.874
+           = 0.157 (≈1.5px below the 'l' ascender at 0.097)
+         margin-top -0.143em → baseline 2.999*(-0.143+0.820) = 2.031 ✓ (held)
+         height 0.883em → float margin-box bottom 2.999*(-0.143+0.883) = 2.219,
+           ~0.21 body em (~2.5pt) above line-3 top (2 lh = 2.4286). Print-safe
+           clearance — a smaller gap rounds away and catches line 3 in the float.
+           (overflow forced visible in JS, so the cap is never clipped; height
+           governs only float clearance.)
+
+       Descender override (J, Q): cap-top on line-1 'l'-top; tail dips below line-2's
+       baseline. Cormorant's Q tail (descender 0.1875) is much shorter than J's
+       (0.250), so the two get SEPARATE vertical metrics (J also carries --descj):
+         Q — .r-drop-cap--desc:  font-size 2.551em, margin-top -0.157em
+              → cap-top ~0.05, tail-bottom ~2.17 (its natural short tail)
+         J — + .r-drop-cap--descj: font-size 2.299em, margin-top -0.133em
+              → cap-top level with the normal caps (~1.3px below line-1 'l'-top, so
+                J no longer towers over I); tail ~2.4px below line-2 baseline. J's
+                font-size was cut ~1.5px of cap-height (its tall ascender read high
+                next to I); margin holds the tail near Q's depth. Ink-verified
+                (tmp/verify-ink2).
+       height:auto + overflow visible (from --desc) so neither tail is ever clipped.
+       FS_DESC in dropcap.js mirrors these per-letter sizes for the shape-outside. */
+    .drop-caps .r-drop-cap {
+      float: left;
+      font-family: 'Cormorant Garamond', 'EB Garamond', serif;
+      font-size: 2.999em;
+      line-height: 1;
+      height: 0.883em;
+      overflow: hidden;
+      margin-top: -0.143em;
+      margin-left: var(--r-drop-offset, 0);
+      padding-right: 0.07em;
+    }
+    .drop-caps .r-drop-cap--desc {
+      font-size: 2.551em;
+      height: auto;
+      overflow: visible;
+      margin-top: -0.157em;
+    }
+    /* J overrides --desc: shrunk so its deep tail (descender 0.250 vs Q's 0.1875)
+       rises to the same depth as Q's, with the cap-top held on line-1's 'l'-top. */
+    .drop-caps .r-drop-cap--descj {
+      font-size: 2.299em;
+      margin-top: -0.133em;
+    }
+    .drop-caps.doc-color .r-drop-cap { color: var(--doc-red); }
+    .r-drop-2nd { display: inline-block; width: 0; }
+
+    .reading-block + .reading-block,
+    .title-blank-verso + .reading-block {
+      margin-top: 2.2rem;
+      padding-top: 2.2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Title page */
+    .title-blank-verso { display: none; }
+    .title-page-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 560px;
+    }
+    .title-page-block::before { content: ''; flex: 2; }
+    .title-page-block::after  { content: ''; flex: 3; }
+    .title-page { text-align: center; }
+    .title-funeral {
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .title-name {
+      font-variant-caps: all-small-caps;
+      font-feature-settings: "smcp" 1, "c2sc" 1;
+      letter-spacing: 0.05em;
+    }
+    .title-date { }
+    .doc-color .title-name,
+    .doc-color .title-date { color: var(--doc-red); }
+
+    /* Subhead */
+    .r-sub {
+      font-variant-caps: all-small-caps;
+      font-feature-settings: "smcp" 1, "c2sc" 1;
+      letter-spacing: 0.05em;
+      text-align: center;
+      font-size: 0.88em;
+      margin-bottom: 0.35em;
+    }
+    .doc-color .r-sub { color: var(--doc-red); }
+    .doc-bw    .r-sub { color: currentColor; }
+
+    /* Reader name */
+    .r-reader {
+      font-style: italic;
+      font-size: 0.88em;
+      margin-bottom: 0.2em;
+    }
+    .doc-color .r-reader { color: var(--doc-red); }
+
+    /* Ref line */
+    .r-ref-line { display: flex; align-items: baseline; font-size: 0.83em; }
+    .r-ref { margin-left: auto; }
+    .r-id  { font-variant-caps: all-small-caps; font-feature-settings: "smcp" 1, "c2sc" 1; letter-spacing: 0; }
+    .r-id-tail { font-variant-caps: normal; font-feature-settings: normal; }
+    .doc-color .r-ref, .doc-color .r-id { color: var(--doc-red); }
+    .doc-bw    .r-ref, .doc-bw    .r-id { font-style: italic; }
+
+    /* Spacer */
+    .r-gap { display: block; height: 0.75lh; }
+
+    /* Intro */
+    .r-intro { }
+
+    /* Cross */
+    .r-cross { font-family: 'Gospel Cross', 'EB Garamond', Georgia, 'Palatino Linotype', serif; margin-right: 0.5em; }
+    .doc-color .r-cross { color: var(--doc-red); }
+    .doc-bw    .r-cross { color: currentColor; }
+
+    /* Hanging indent for wrapped lines */
+    .r-line        { display: block; padding-left: 1em; text-indent: -1em; }
+    .r-line-indent { display: block; text-indent: 1em; }
+
+    /* Body */
+    .r-body { }
+    .r-group { break-inside: avoid; }
+    /* Keep the final group (last line + conclusion) with the preceding group so
+       the last line is never orphaned onto a new page. */
+    .r-group--last { break-before: avoid; }
+
+    /* Terminal line ("The word/Gospel of the Lord.") — keep it on the same page
+       as the last body line. In the grouped (non-drop-cap) path the terminal
+       sits inside .r-group {break-inside:avoid}; in the drop-cap path it is bare
+       inside .r-body-dropcap, so guard it explicitly. break-before:avoid on both
+       the terminal and its preceding gap chains them back to the last text line
+       so the conclusion is never orphaned onto the next page. */
+    .r-terminal   { break-before: avoid; }
+    .r-gap--term  { break-before: avoid; }
+
+    /* ── Prayers of the Faithful ──────────────────────────────────────────── */
+    .prayer-rubric {
+      font-style: italic;
+      font-size: 0.88em;
+      margin-bottom: 0.2em;
+    }
+    .doc-color .prayer-rubric { color: var(--doc-red); }
+
+    .prayer-petitions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6lh;
+      margin-top: 0.2em;
+    }
+
+    .prayer-petition-wrap { }
+
+    .prayer-response-line { display: block; }
+
+    /* ── Prayer element (editable unit) ───────────────────────────────────── */
+    .prayer-element {
+      position: relative;
+    }
+    #preview-doc.editable .prayer-element:not(.prayer-element--editing):hover {
+      background: var(--surface);
+      border-radius: 6px;
+      box-shadow: 0.4em 0 0 0 var(--surface), -0.4em 0 0 0 var(--surface);
+      cursor: pointer;
+    }
+
+    /* Editing affordances are UI, not document text — never selectable/copyable
+       from the preview (they are also display:none in print). */
+    .prayer-element-tab,
+    .prayer-insert,
+    .prayer-edit-actions { user-select: none; -webkit-user-select: none; }
+    .prayer-element-tab {
+      position: absolute;
+      font-size: var(--ui-fs);  /* fixed chrome: don't scale with the font toggle */
+      line-height: calc(17 / 14);  /* pin leading too; the inherited length-based line-height would otherwise regrow the chip */
+      top: 0;
+      right: 1.2em;
+      transform: translateY(-100%);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--surface);
+      padding: 8px 10px;  /* +10px box height; bottom stays put via translateY(-100%) */
+      border-radius: 5px 5px 0 0;
+      opacity: 0;
+      pointer-events: none;
+      cursor: default;
+    }
+    #preview-doc.editable .prayer-element:not(.prayer-element--editing):hover .prayer-element-tab {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    #preview-doc.prayer-editing .prayer-element:not(.prayer-element--editing) .prayer-element-tab {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    .pe-edit-label {
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      font-size: 0.65em;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+      padding: 0 3px;
+    }
+
+    .pe-btn {
+      width: 1.35em; height: 1.35em;
+      font-size: 0.6em;
+      border-radius: 50%;
+      border: 1.5px solid var(--subtle);
+      background: transparent;
+      color: var(--subtle);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      padding: 0;
+      line-height: 1;
+    }
+    .pe-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--text); }
+    .pe-up::before, .pe-down::before {
+      content: '';
+      display: block;
+      width: 4px; height: 4px;
+      border-top: 1.5px solid currentColor;
+      border-right: 1.5px solid currentColor;
+    }
+    .pe-up::before   { transform: rotate(-45deg)  translate(0,  1px); }
+    .pe-down::before { transform: rotate(135deg)  translate(0, -1px); }
+    .pe-remove:hover { background: var(--danger); border-color: var(--danger); color: var(--on-solid); }
+    .prayer-element-tab--confirm {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+    .pe-confirm-label {
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      font-size: 0.65em; color: var(--muted);
+    }
+    .pe-confirm-yes, .pe-confirm-no {
+      padding: 1px 6px; border-radius: 4px; cursor: pointer;
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      font-size: 0.65em;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .pe-confirm-yes {
+      border: 1px solid var(--danger); background: transparent; color: var(--danger);
+    }
+    .pe-confirm-yes:hover { background: var(--danger); color: var(--on-solid); }
+    .pe-confirm-no {
+      border: 1px solid var(--border); background: transparent; color: var(--muted);
+    }
+    .pe-confirm-no:hover { border-color: var(--subtle); color: var(--text); }
+
+    /* ── Prayer editing state ─────────────────────────────────────────────── */
+    .prayer-textarea {
+      display: block;
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      color: inherit;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      resize: none;
+      outline: none;
+      padding: 0.25em 0.4em;
+      overflow: hidden;
+      min-height: 1.2em;
+      box-sizing: border-box;
+    }
+
+    /* Lock and dim left pane during prayer editing */
+    body.prayer-editing-active #left {
+      pointer-events: none;
+      opacity: 0.4;
+      transition: opacity 0.15s;
+    }
+
+    /* Lock and dim the preview toolbar (settings + print) during prayer editing,
+       matching the rest of the dimmed-out interface. */
+    body.prayer-editing-active #preview-toolbar {
+      pointer-events: none;
+      opacity: 0.4;
+      transition: opacity 0.15s;
+    }
+
+    /* Dim reading blocks (not the prayer block) during prayer editing */
+    #preview-doc.prayer-editing .reading-block[data-slot] {
+      opacity: 0.4;
+      transition: opacity 0.15s;
+    }
+    #preview-doc.prayer-editing .prayer-element:not(.prayer-element--editing) {
+      opacity: 0.4;
+      transition: opacity 0.15s;
+    }
+
+    .prayer-edit-actions {
+      display: flex;
+      font-size: var(--ui-fs);  /* fixed chrome: don't scale with the font toggle */
+      line-height: calc(17 / 14);  /* pin leading too; the inherited length-based line-height would otherwise regrow the chip */
+      gap: 0.5rem;
+      justify-content: flex-end;
+      margin-top: 0.4em;
+    }
+    .prayer-response-actions {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1em;
+    }
+    .prayer-response-actions .prayer-edit-actions {
+      margin-top: 0.35em;
+      flex-shrink: 0;
+    }
+    .pe-cancel, .pe-accept {
+      padding: 4px 12px;
+      font-size: 0.72rem;
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      border-radius: 7px;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .pe-cancel {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+    }
+    .pe-cancel:hover { color: var(--text); border-color: var(--subtle); }
+    .pe-accept {
+      border: 1px solid var(--confirm);
+      background: transparent;
+      color: var(--confirm);
+    }
+    .pe-accept:hover:not(:disabled) { background: var(--confirm); color: var(--on-solid); }
+    .pe-accept:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+
+    /* ── Petition insertion points ───────────────────────────────────────── */
+    .prayer-petition-wrap {
+      position: relative;
+      z-index: 1;
+    }
+    #preview-doc.editable .prayer-petition-wrap:hover { z-index: 3; }
+    /* Invisible scaling SLOT: keeps the em geometry so it fills the inter-petition
+       gap, spans the petition column width, and sits net-zero in flow (bottom at
+       the petition top) at any font size. The visible dashed chip lives inside it
+       at a fixed size, bottom-aligned so it stays flush with the petition top. */
+    .prayer-insert {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      width: calc(100% + 1.026em);
+      height: 1.8em;
+      margin: -0.9em -0.513em;
+      position: relative;
+      font-size: 0.78em;  /* drives the em geometry above (scales); no visible text here */
+      background: transparent;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 0;
+      transition: opacity 0.12s, z-index 0s 0.12s;
+    }
+    /* Visible chip: fixed height + label (pinned to --ui-fs), full width of the
+       slot so it tracks the petition column. */
+    .prayer-insert-chip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 1.8em;
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      font-size: calc(0.78 * var(--ui-fs));
+      line-height: calc(17 / 14);  /* pin leading (inherited length-based line-height would scale) */
+      color: var(--subtle);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    /* Make every insertion point hover-detectable in editable mode, independent
+       of adjacent-petition hover, so the button reveals no matter which way the
+       mouse approaches — from the sides, above the first, or below the last.
+       Without this, the hidden button is pointer-events:none, so .prayer-insert
+       :hover can never fire on its own (only an adjacent petition could summon
+       it). The hidden button stays at z-index 0, below petitions (z-index 1), so
+       it never steals their hover or clicks; clicks land only in the otherwise
+       dead gap/margin around it. */
+    #preview-doc.editable .prayer-insert { pointer-events: auto; }
+    #preview-doc.editable .prayer-petition-wrap:hover + .prayer-insert,
+    #preview-doc.editable .prayer-insert:has(+ .prayer-petition-wrap:hover),
+    #preview-doc.editable .prayer-insert:hover {
+      opacity: 1;
+      pointer-events: auto;
+      z-index: 2;
+      transition: color 0.15s, border-color 0.15s, opacity 0.12s;
+    }
+    #preview-doc.editable .prayer-insert:hover .prayer-insert-chip {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    #preview-doc.prayer-editing .prayer-insert { display: none; }
+    @media print { .prayer-insert { display: none !important; } }
+
+    /* Psalm */
+    .psalm-response       { }
+    .psalm-response-first { }
+    .psalm-response-line  { }
+    .r-glyph { }
+    .doc-color .r-glyph { color: var(--doc-red); }
+    .doc-bw    .r-glyph { color: currentColor; }
+    .doc-color .prayer-name-ph { color: var(--doc-red); }
+    .doc-bw    .prayer-name-ph { font-style: italic; }
+    .doc-color .prayer-alt { color: var(--doc-red); }
+    .doc-bw    .prayer-alt { color: currentColor; font-style: normal; }
+
+    .psalm-unit   { break-inside: avoid; }
+    .psalm-stanza { }
+
+    #preview-doc.slot-open { padding-bottom: 100vh; }
+
+    /* ── Editable reading blocks ─────────────────────────────────────────── */
+    #preview-doc.editable .reading-block[data-slot] {
+      position: relative;
+      cursor: pointer;
+      transition: background 0.15s;
+      padding-left: 0.8em;
+      padding-right: 0.8em;
+      margin-left: -0.8em;
+      margin-right: -0.8em;
+    }
+    #preview-doc.editable #title-block {
+      position: relative;
+      cursor: default;
+      transition: background 0.15s;
+    }
+    #title-block-tabs { gap: 0; }
+    #preview-doc.editable #title-block .title-hover-bridge {
+      position: absolute;
+      top: -2em;
+      left: 0;
+      right: 0;
+      height: 2em;
+    }
+    #preview-doc.editable .reading-block[data-slot]:hover,
+    #preview-doc.editable #title-block:hover {
+      background: var(--surface);
+      border-radius: 6px;
+    }
+    #preview-doc.editable .reading-block[data-slot]::before {
+      content: '';
+      position: absolute;
+      top: -2em;
+      left: 0;
+      right: 0;
+      height: 2em;
+    }
+    .reading-block-tabs {
+      position: absolute;
+      font-size: var(--ui-fs);  /* fixed chrome: don't scale with the font toggle */
+      line-height: calc(17 / 14);  /* pin leading too; the inherited length-based line-height would otherwise regrow the chip */
+      top: 0;
+      right: 1.2em;
+      transform: translateY(-100%);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--surface);
+      padding: 8px 11px;  /* +10px box height; bottom stays put via translateY(-100%) */
+      border-radius: 5px 5px 0 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+      cursor: pointer;
+      /* UI affordance, never document content: keep it out of text selection
+         (opacity:0 text is still selectable) so it can't be copied from the
+         preview. It is already display:none in print. */
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #preview-doc.editable .reading-block[data-slot]:hover .reading-block-tabs,
+    #preview-doc.editable #title-block:hover .reading-block-tabs {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .reading-block-tab-label {
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      font-size: 0.65em;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .reading-block-tab-remove {
+      width: 1.35em;
+      height: 1.35em;
+      font-size: 0.6em;
+      line-height: 1;  /* tight line-box so the ✕ centers consistently (matches .pe-btn) */
+      border-radius: 50%;
+      border: 1.5px solid var(--subtle);
+      background: transparent;
+      color: var(--subtle);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .reading-block-tab-remove:hover {
+      background: var(--danger);
+      border-color: var(--danger);
+      color: var(--on-solid);
+    }
+
+    /* ── Ghost placeholder ────────────────────────────────────────────────── */
+    .reading-ghost {
+      border: 1.5px dashed var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      color: var(--subtle);
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+
+    /* ── Empty state ──────────────────────────────────────────────────────── */
+    .doc-empty {
+      color: var(--subtle);
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      font-size: 0.88rem;
+      font-style: italic;
+      line-height: 1.65;
+      padding: 1rem 0;
+    }
+    .doc-empty p { margin: 0 0 1em; }
+    .doc-empty p:last-child { margin-bottom: 0; }
+    .doc-empty strong { color: var(--accent-dim); font-weight: 600; }
+    /* Inline control reference: icon + label as one accented unit, never split across
+       lines (white-space: nowrap keeps the glyph glued to its label). */
+    .doc-empty .ui-ref { white-space: nowrap; color: var(--accent-dim); font-weight: 600; }
+    .doc-empty .ui-ref svg { width: 1em; height: 1em; vertical-align: -0.15em; margin-right: 0.25em; }
+
+    /* ── Print tips modal ────────────────────────────────────────────────── */
+    #print-tips-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    #print-tips-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.75rem 2rem 1.5rem;
+      max-width: 420px;
+      width: calc(100% - 3rem);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    }
+    #print-tips-title {
+      font-size: 0.9rem; font-weight: 600;
+      color: var(--text); letter-spacing: 0.03em;
+      margin-bottom: 1rem;
+    }
+    #print-tips-body {
+      font-size: 0.82rem; color: var(--text);
+      line-height: 1.65; margin-bottom: 1.5rem;
+    }
+    #print-tips-body p { margin-bottom: 0.5rem; }
+    #print-tips-body p:last-child { margin-bottom: 0; }
+    #print-tips-body ol { margin: 0.4rem 0 0 1.1rem; }
+    #print-tips-body li { margin-bottom: 0.3rem; }
+    #print-tips-body strong { color: var(--text); font-weight: 600; }
+    #print-tips-body .tips-note { margin-top: 0; }
+    #print-tips-actions {
+      display: flex; gap: 0.6rem; justify-content: flex-end;
+    }
+    #print-tips-remind {
+      padding: 7px 14px; font-size: 0.76rem;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: transparent; color: var(--muted);
+      cursor: pointer; letter-spacing: 0.03em;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    #print-tips-remind:hover { color: var(--text); border-color: var(--subtle); }
+    #print-tips-dismiss {
+      padding: 7px 14px; font-size: 0.76rem;
+      border: 1px solid var(--confirm); border-radius: 8px;
+      background: transparent; color: var(--confirm);
+      cursor: pointer; letter-spacing: 0.03em;
+      transition: background 0.15s, color 0.15s;
+    }
+    #print-tips-dismiss:hover { background: var(--confirm); color: var(--on-solid); }
+
+    /* ── Print styles ─────────────────────────────────────────────────────── */
+    @media print {
+      #left, #preview-toolbar, .reading-ghost { display: none !important; }
+
+      /* Editing affordances render INSIDE #preview-doc (the printed area) and are
+         normally hidden only by opacity, which leaks into the PDF if a :hover is
+         active at print time. Force them off so no UI can ever print. */
+      .reading-block-tabs,
+      .prayer-element-tab,
+      .prayer-edit-actions,
+      .prayer-insert,
+      .prayer-textarea,
+      .slot-x { display: none !important; }
+      /* Neutralise hover affordances captured at print time (background tint). */
+      #preview-doc.editable .reading-block[data-slot]:hover,
+      #preview-doc.editable #title-block:hover,
+      #preview-doc .prayer-element:hover { background: none !important; }
+
+      body { overflow: visible; height: auto; }
+      #app, #right { display: block; height: auto; }
+      #preview-scroll { overflow: visible; padding: 0; }
+
+      #preview-doc {
+        max-width: none;
+        box-shadow: none;
+        padding: 0 !important;
+        min-height: 0;
+        font-size: var(--doc-pt) !important;
+        line-height: calc(var(--doc-pt) * 17 / 14) !important;
+      }
+
+      .reading-block:first-child { break-before: auto; }
+
+      /* Each reading on its own page */
+      .reading-block {
+        break-before: page;
+        border-top: none !important;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+      }
+
+      /* Psalm unit and petition must not break mid-section */
+      .psalm-unit, .prayer-petition-wrap { break-inside: avoid; }
+
+      /* Title page: full page height; blank verso inserts an empty page */
+      .title-page-block { min-height: 0; height: 9in; }
+      .title-blank-verso {
+        display: block;
+        break-before: page;
+        break-after: page;
+        height: 0;
+      }
+
+      /* Restore print colors regardless of screen theme (fixed paper tokens) */
+      #preview-doc { color: var(--doc-ink) !important; }
+      .doc-color .r-sub, .doc-color .r-ref, .doc-color .r-id,
+      .doc-color .r-glyph, .doc-color .r-cross,
+      .doc-color .r-reader, .doc-color .prayer-rubric,
+      .doc-color .prayer-name-ph,
+      .doc-color .prayer-alt { color: var(--doc-red-print) !important; }
+      .doc-color .title-name,
+      .doc-color .title-date { color: var(--doc-red-print) !important; }
+      .doc-bw .r-sub, .doc-bw .r-ref, .doc-bw .r-id,
+      .doc-bw .r-glyph, .doc-bw .r-cross,
+      .doc-bw .r-reader, .doc-bw .prayer-rubric { color: var(--doc-ink) !important; }
+      .doc-bw .prayer-alt { color: var(--doc-ink) !important; font-style: normal !important; }
+      .doc-bw .title-name,
+      .doc-bw .title-date { color: var(--doc-ink) !important; }
+
+      .drop-caps.doc-color .r-drop-cap { color: var(--doc-red-print) !important; }
+      .drop-caps.doc-bw    .r-drop-cap { color: var(--doc-ink) !important; }
+
+      /* Reserve space for hanging drop cap / punctuation overhang. Sized for the
+         widest hang — an opening double quote (−0.68em) — whose ink was clipping
+         at the page margin with the old 0.8em reserve. */
+      #preview-doc.drop-caps { padding-left: 1.1em !important; }
+
+      @page {
+        size: letter;
+        margin: 0.75in 1.25in 1.25in;
+      }
+
+    }
+    /* ── Save / Load / Share ──────────────────────────────────────────────── */
+    #funeral-bar {
+      display: flex; gap: 6px;
+      padding: 10px 21px; border-bottom: 1px solid var(--border);
+    }
+    .fbar-btn {
+      position: relative;
+      flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px 6px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em;
+      color: var(--muted); background: transparent;
+      border: 1px solid var(--border); border-radius: 9px; cursor: pointer;
+      transition: color .15s, border-color .15s;
+    }
+    .fbar-btn:hover { color: var(--text); border-color: var(--subtle); }
+    .fbar-btn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+    .fbar-icon {
+      flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+      width: 36px; padding: 8px;
+      color: var(--muted); background: transparent;
+      border: 1px solid var(--border); border-radius: 9px; cursor: pointer;
+      transition: color .15s, border-color .15s;
+    }
+    .fbar-icon:hover { color: var(--text); border-color: var(--subtle); }
+    .fbar-icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .fbar-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    #fb-save.is-dirty { color: var(--confirm); border-color: var(--confirm); }
+    /* Non-colour cue for unsaved changes: a dot whose presence (not just hue) signals
+       "unsaved", legible in greyscale / for colour-blind users. Mirrors mobile's
+       .m-dirty dot (mobile.css) for desktop↔mobile consistency. */
+    #fb-save.is-dirty::after {
+      content: ''; position: absolute; top: 5px; right: 6px;
+      width: 6px; height: 6px; border-radius: 50%; background: var(--confirm);
+    }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+    }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 22px; width: 460px; max-width: calc(100vw - 32px); max-height: calc(100vh - 64px);
+      display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    }
+    .modal-title { font-size: 1.05rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .modal-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 14px; line-height: 1.4; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .modal-btn { padding: 9px 14px; font-size: 0.8rem; border-radius: 9px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text); }
+    .modal-btn:hover { border-color: var(--subtle); }
+    .modal-btn.primary { background: var(--confirm); border-color: var(--confirm); color: var(--on-solid); }
+    .modal-btn.primary:hover { background: color-mix(in srgb, var(--confirm) 90%, black); border-color: color-mix(in srgb, var(--confirm) 90%, black); }
+    .modal-btn.danger { color: var(--doc-red); border-color: var(--doc-red); }
+    .modal-input { width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 0.9rem; border-radius: 9px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
+    .modal-input:focus { outline: none; border-color: var(--subtle); }
+
+    #lib-sort { display: flex; gap: 6px; align-items: center; font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; }
+    #lib-sort button { font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; }
+    #lib-sort button.active { color: var(--text); border-color: var(--subtle); }
+    #lib-list { overflow-y: auto; margin: 0 -4px; }
+    .lib-item { display: flex; align-items: center; gap: 8px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
+    .lib-item-main { flex: 1; min-width: 0; cursor: pointer; }
+    .lib-item-name { font-size: 0.9rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lib-item-meta { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+    .lib-item-act { padding: 5px 9px; font-size: 0.7rem; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; flex-shrink: 0; }
+    .lib-item-act:hover { color: var(--text); border-color: var(--subtle); }
+    .lib-item-act--del:hover { background: var(--danger); border-color: var(--danger); color: var(--on-solid); }
+    .lib-empty { padding: 24px 6px; text-align: center; color: var(--muted); font-size: 0.85rem; }
+    #lib-footer { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .lib-footer-btn { font-size: 0.72rem; padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; }
+    .lib-footer-btn:hover { color: var(--text); border-color: var(--subtle); }
+    .lib-footer-btn.danger:hover { color: var(--doc-red); border-color: var(--doc-red); }
+
+    .share-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+    #share-copied { color: var(--confirm); font-size: 0.78rem; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <aside id="left">
+    <div id="funeral-bar">
+      <button class="fbar-btn" id="fb-new" title="Start a new funeral">
+        <svg viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg><span>New</span></button>
+      <button class="fbar-btn" id="fb-save" title="Save this funeral">
+        <svg viewBox="0 0 16 16"><path d="M8 2.5v7m0 0l-3-3m3 3l3-3M3 13.5h10"/></svg><span>Save</span></button>
+      <button class="fbar-btn" id="fb-open" title="Open a saved funeral">
+        <svg viewBox="0 0 16 16"><path d="M2 4.5h4l1.5 2H14v7H2z"/></svg><span>Open</span></button>
+      <button class="fbar-btn" id="fb-share" title="Share a link or code">
+        <svg viewBox="0 0 16 16"><path d="M6 4h6v6M12 4l-8 8"/></svg><span>Share</span></button>
+      <button class="fbar-icon" id="fb-theme" aria-label="Switch theme" title="Switch theme"></button>
+    </div>
+    <div id="context-bar">
+      <div id="context-bar-label">
+        <span>Readings</span>
+        <div class="help-popover-wrap">
+          <button class="help-btn" id="help-ctx" aria-label="About the funeral readings">?</button>
+          <div class="help-popover" id="help-ctx-popover">
+            <p>The Church provides a set of readings intended for general use, with special readings for the funeral of a baptized child and for a child who died before baptism. Select the set appropriate to this funeral.</p>
+          </div>
+        </div>
+      </div>
+      <div id="context-pills">
+        <button class="ctx-pill active" data-ctx="adult">General use</button>
+        <button class="ctx-pill" data-ctx="child">Baptized Child</button>
+        <button class="ctx-pill" data-ctx="unbaptized">Unbaptized Child</button>
+      </div>
+    </div>
+
+    <div id="season-bar">
+      <div id="season-bar-label">
+        <span>Liturgical season</span>
+        <div class="help-popover-wrap">
+          <button class="help-btn" id="help-season" aria-label="About Easter Time">?</button>
+          <div class="help-popover" id="help-season-popover"></div>
+        </div>
+      </div>
+      <div id="season-pills">
+        <button class="ctx-pill active" data-season="outside">Outside Easter Time</button>
+        <button class="ctx-pill" data-season="during">During Easter Time</button>
+      </div>
+    </div>
+
+    <div id="slot-area"></div>
+  </aside>
+
+  <main id="right">
+    <div id="preview-toolbar">
+      <div id="settings-wrap">
+        <button id="settings-toggle">
+          <span class="s-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+          <span>Print settings</span>
+          <span class="s-chevron">▾</span>
+        </button>
+        <div id="settings-panel">
+          <div id="settings-inner">
+            <div class="s-row">
+              <span class="s-label">Include section titles</span>
+              <label class="sw">
+                <input type="checkbox" id="s-subhead" checked>
+                <span class="sw-track"></span>
+              </label>
+            </div>
+            <div class="s-row">
+              <span class="s-label">Include scripture reference</span>
+              <label class="sw">
+                <input type="checkbox" id="s-ref" checked>
+                <span class="sw-track"></span>
+              </label>
+            </div>
+            <div class="s-row">
+              <span class="s-label">Include lectionary number</span>
+              <label class="sw">
+                <input type="checkbox" id="s-id">
+                <span class="sw-track"></span>
+              </label>
+            </div>
+            <div class="s-row">
+              <span class="s-label">Include reader</span>
+              <label class="sw">
+                <input type="checkbox" id="s-reader">
+                <span class="sw-track"></span>
+              </label>
+            </div>
+            <div class="s-row">
+              <span class="s-label">Drop caps</span>
+              <label class="sw">
+                <input type="checkbox" id="s-dropcaps">
+                <span class="sw-track"></span>
+              </label>
+            </div>
+            <div class="s-row">
+              <span class="s-label">Font size</span>
+              <div class="seg" id="seg-fontsize">
+                <button data-val="normal" class="active">Normal</button>
+                <button data-val="large">Large</button>
+              </div>
+            </div>
+            <div class="s-row">
+              <span class="s-label">Output</span>
+              <div class="seg" id="seg-color">
+                <button data-val="color" class="active">Color</button>
+                <button data-val="bw">B&amp;W</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span id="preview-title">Preview</span>
+      <button id="print-btn"><svg viewBox="0 0 16 16"><path d="M4.5 6V2.5h7V6M4.5 11.5h-1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1M4.5 9.5h7v4h-7z"/></svg>Print / Save as PDF</button>
+    </div>
+
+    <div id="print-tips-overlay" style="display:none">
+      <div id="print-tips-modal">
+        <div id="print-tips-title">For the best result</div>
+        <div id="print-tips-body"></div>
+        <div id="print-tips-actions">
+          <button id="print-tips-remind">Remind me next time</button>
+          <button id="print-tips-dismiss">Got it—don’t show again</button>
+        </div>
+      </div>
+    </div>
+    <div id="preview-scroll">
+      <div id="preview-doc"></div>
+    </div>
+  </main>
+
+  <div id="funeral-library-overlay" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <div class="modal-title">Saved funerals</div>
+      <div class="modal-sub">Open a saved funeral. Your current work is kept until you start or open another.</div>
+      <div id="lib-sort">Sort: <button data-sort="modified" class="active">Last modified</button><button data-sort="name">Name</button></div>
+      <div id="lib-list"></div>
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+        <div class="modal-sub" style="margin-bottom:6px">Or load from a shared link or code:</div>
+        <div class="share-row">
+          <input class="modal-input" id="lib-code-input" placeholder="https://…/#FR1…   or   FR1…" autocomplete="off">
+          <button class="modal-btn primary" id="lib-code-load">Load</button>
+        </div>
+      </div>
+      <div id="lib-footer">
+        <button class="lib-footer-btn" id="lib-export">Export all…</button>
+        <button class="lib-footer-btn" id="lib-import">Import…</button>
+        <button class="lib-footer-btn danger" id="lib-clear">Clear all</button>
+      </div>
+      <div class="modal-actions"><button class="modal-btn" id="lib-close">Close</button></div>
+    </div>
+  </div>
+
+  <div id="save-overlay" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <div class="modal-title">Save funeral</div>
+      <div class="modal-sub">Give this funeral a name so you can find it later.</div>
+      <input class="modal-input" id="save-name" placeholder="e.g. John Smith — 14 June" maxlength="80" autocomplete="off">
+      <div class="modal-actions">
+        <button class="modal-btn" id="save-cancel">Cancel</button>
+        <button class="modal-btn primary" id="save-confirm">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="share-overlay" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <div class="modal-title">Share this funeral</div>
+      <div class="modal-sub">Send the link, or copy the code to paste into the app on another device.</div>
+      <input class="modal-input" id="share-link" readonly>
+      <div class="share-row">
+        <button class="modal-btn primary" id="share-copy-link">Copy link</button>
+        <button class="modal-btn" id="share-email">Email…</button>
+        <button class="modal-btn" id="share-copy-code">Copy code</button>
+        <span id="share-copied" style="display:none">Copied!</span>
+      </div>
+      <div class="modal-actions"><button class="modal-btn" id="share-close">Close</button></div>
+    </div>
+  </div>
+
+  <div id="confirm-overlay" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <div class="modal-title" id="confirm-title">Unsaved changes</div>
+      <div class="modal-sub" id="confirm-msg">You have unsaved changes that will be lost.</div>
+      <div class="modal-actions">
+        <button class="modal-btn" id="confirm-cancel">Cancel</button>
+        <button class="modal-btn danger" id="confirm-discard">Discard</button>
+        <button class="modal-btn primary" id="confirm-save">Save &amp; continue</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script type="module" src="/boot.js"></script>
+<script type="module" src="/help-popover.js"></script>
+</body>
+</html>

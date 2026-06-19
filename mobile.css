@@ -1,0 +1,710 @@
+/*
+ * Funeral Readings Planner: A resource for planning & printing Catholic funeral readings in Canada
+ * Copyright (C) 2026 Fr Peter Do
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+/* Mobile layout styles. Loaded only on phones (via boot.js → mobile.js).
+   Reuses the shared theme tokens (:root / html.light in /theme.css, linked from
+   index.html's <head>) and box-sizing reset; overrides the few desktop globals
+   (133% root font, 100vh/overflow-hidden body) that don't suit a scrolling phone
+   view. */
+
+html[data-layout="mobile"] {
+  font-size: 100%; -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;   /* no pull-to-refresh (e.g. when dragging a sheet down) */
+  /* Defined on <html>, NOT #m-root, so overlays appended to <body> (Add,
+     Preview, Browse, Library, sheets) inherit them too. If they were scoped to
+     #m-root, the calc(... + var(--safe-b)) paddings on those overlays would be
+     invalid there and drop to 0 — leaving the content flush to the edge. */
+  --topbar-h: 56px;
+  --bar-h: 64px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+html[data-layout="mobile"] body {
+  height: auto;
+  min-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: none;
+  font-family: 'Source Sans 3', system-ui, -apple-system, sans-serif;
+}
+
+#m-root { color: var(--text); }
+
+/* ── Top bar ──────────────────────────────────────────────────────────────── */
+.m-topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 30;
+  height: var(--topbar-h);
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.m-topbar-title { font-size: 1.02rem; font-weight: 600; letter-spacing: 0.01em; }
+.m-topbar-spacer { flex: 1; }
+
+.m-icon-btn {
+  flex-shrink: 0;
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--muted);
+  font-size: 1.1rem; cursor: pointer; border-radius: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-icon-btn:active { background: var(--surface2); }
+.m-burger, .m-burger::before, .m-burger::after {
+  display: block; width: 20px; height: 2px; border-radius: 2px;
+  background: var(--text); content: '';
+}
+.m-burger { position: relative; }
+.m-burger::before { position: absolute; top: -6px; }
+.m-burger::after  { position: absolute; top: 6px; }
+
+/* ── Slot list ────────────────────────────────────────────────────────────── */
+.m-slots {
+  padding: 16px 16px calc(var(--bar-h) + var(--safe-b) + 20px);
+  margin-top: var(--topbar-h);
+  display: flex; flex-direction: column; gap: 12px;
+  max-width: 34rem; margin-left: auto; margin-right: auto;
+}
+
+.m-slot {
+  width: 100%;
+  min-height: 64px;
+  border-radius: 14px;
+  display: flex; align-items: center; gap: 12px;
+  text-align: left;
+  font-family: inherit;
+}
+.m-slot--empty {
+  padding: 0 18px;
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.98rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-slot--empty:active { border-color: var(--accent); color: var(--text); }
+.m-slot-plus { font-size: 1.3rem; line-height: 1; color: var(--subtle); }
+
+.m-slot--filled {
+  flex-direction: column; align-items: stretch; gap: 0; padding: 0;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+}
+.m-slot-top { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 18px; min-height: 62px; }
+.m-slot-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+
+/* Inline reader row */
+.m-reader-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px 12px 18px; border-top: 1px solid var(--border); }
+.m-reader-label {
+  font-size: 0.66rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted); flex-shrink: 0;
+}
+.m-reader-field { position: relative; flex: 1; min-width: 0; }
+.m-reader-input {
+  width: 100%; min-width: 0; height: 38px; padding: 0 40px 0 12px;
+  border: 1px solid var(--border); border-radius: 9px;
+  background: var(--bg); color: var(--text);
+  font-family: inherit; font-size: 16px; outline: none;   /* 16px avoids iOS focus auto-zoom */
+}
+.m-reader-input:focus { border-color: var(--accent); }
+.m-reader-input::placeholder { color: var(--subtle); font-style: italic; }   /* matches desktop's dimmed-italic "Optional" */
+.m-slot-label {
+  font-size: 0.66rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.m-slot-ref { font-size: 0.98rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-slot-id  { font-size: 0.72rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.m-slot-x {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid var(--border); background: transparent; color: var(--subtle);
+  font-size: 0.85rem; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-slot-x:active { background: var(--danger); color: var(--on-solid); border-color: var(--danger); }
+
+/* ── Action bar ───────────────────────────────────────────────────────────── */
+.m-actionbar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+  height: calc(var(--bar-h) + var(--safe-b));
+  padding: 8px 12px calc(8px + var(--safe-b));
+  display: flex; gap: 10px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.m-bar-btn {
+  flex: 1; height: 48px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: transparent; color: var(--text);
+  font-family: inherit; font-size: 0.92rem; font-weight: 500;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+.m-bar-btn svg { width: 17px; height: 17px; flex: 0 0 auto; }
+.m-bar-btn:active { background: var(--surface2); }
+.m-bar-btn:disabled { opacity: 0.4; pointer-events: none; }
+.m-bar-btn--primary {
+  flex: 1.25;
+  background: var(--accent); border-color: var(--accent); color: var(--acc-text);
+  font-weight: 600;
+}
+.m-bar-btn.m-dirty:not(:disabled)::after {
+  content: ''; position: absolute; top: 8px; right: 12px;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--confirm);
+}
+
+/* ── Hamburger menu (full-screen) ─────────────────────────────────────────── */
+.m-menu {
+  position: fixed; inset: 0; z-index: 50;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  transform: translateX(-100%);   /* enters from the left, matching the hamburger */
+  transition: transform 0.24s ease;
+  visibility: hidden;
+}
+.m-menu.open { transform: translateX(0); visibility: visible; }
+.m-menu-head {
+  flex-shrink: 0; height: var(--topbar-h);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 8px 0 18px;
+  border-bottom: 1px solid var(--border);
+}
+.m-menu-title { font-size: 1.02rem; font-weight: 600; }
+.m-menu-body {
+  flex: 1; overflow-y: auto;
+  padding: 8px 16px calc(28px + var(--safe-b));
+  max-width: 34rem; width: 100%; margin: 0 auto;
+}
+.m-menu-section { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.m-menu-section:last-child { border-bottom: none; }
+.m-menu-h {
+  font-size: 0.68rem; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+}
+.m-menu-h-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.m-menu-h-row .m-menu-h { margin-bottom: 0; }
+.m-help {
+  width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%;
+  border: 1.5px dashed var(--subtle); background: transparent; color: var(--muted);
+  font-size: 0.7rem; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent; padding: 0;
+}
+.m-help:active { color: var(--text); border-color: var(--text); }
+.m-menu-note { font-size: 0.78rem; color: var(--muted); margin-top: 8px; line-height: 1.45; }
+
+/* Quick-action row (New / Open / Theme) at the top of the menu. */
+.m-menu-top { display: flex; gap: 8px; }
+.m-quick {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 4px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: transparent; color: var(--text);
+  font-family: inherit; font-size: 0.8rem; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-quick:active { background: var(--surface2); }
+.m-quick svg, .m-theme-ico svg { width: 22px; height: 22px; }
+.m-icon-btn svg { width: 22px; height: 22px; }
+.m-theme-ico { display: flex; }
+
+.m-pills { display: flex; flex-direction: column; gap: 8px; }
+.m-pill {
+  width: 100%; min-height: 46px; padding: 0 16px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: transparent; color: var(--muted);
+  font-family: inherit; font-size: 0.8rem; font-weight: 600;
+  text-align: center; text-transform: uppercase; letter-spacing: 0.05em;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.m-pill.active { background: var(--accent); border-color: var(--accent); color: var(--acc-text); font-weight: 600; }
+.m-disabled { opacity: 0.4; pointer-events: none; }
+
+.m-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  min-height: 50px;
+}
+.m-row-label { font-size: 0.92rem; color: var(--text); }
+
+/* Toggle switch */
+.m-switch { position: relative; width: 50px; height: 30px; flex-shrink: 0; }
+.m-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.m-switch-track {
+  position: absolute; inset: 0; border-radius: 20px;
+  background: var(--surface2); border: 1px solid var(--border);
+  transition: background 0.18s, border-color 0.18s;
+}
+.m-switch-track::before {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px; border-radius: 50%; background: var(--subtle);
+  transition: transform 0.18s, background 0.18s;
+}
+.m-switch input:checked ~ .m-switch-track { background: var(--accent); border-color: var(--accent); }
+.m-switch input:checked ~ .m-switch-track::before { transform: translateX(20px); background: var(--acc-text); }
+
+/* Segmented control */
+.m-seg { display: flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; flex-shrink: 0; }
+.m-seg button {
+  min-width: 64px; height: 38px; padding: 0 14px;
+  border: none; background: transparent; color: var(--muted);
+  font-family: inherit; font-size: 0.85rem; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-seg button + button { border-left: 1px solid var(--border); }
+.m-seg button.active { background: var(--accent); color: var(--acc-text); }
+
+.m-menu-action {
+  width: 100%; min-height: 50px; margin-top: 4px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: transparent; color: var(--text);
+  font-family: inherit; font-size: 0.95rem; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-menu-action:active { background: var(--surface2); }
+.m-menu-action--danger { color: var(--doc-red); border-color: color-mix(in srgb, var(--doc-red) 40%, var(--border)); }
+
+/* ── Bottom sheet ─────────────────────────────────────────────────────────── */
+.m-sheet-overlay {
+  position: fixed; inset: 0; z-index: 70;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: flex-end;
+  opacity: 0; transition: opacity 0.2s;
+}
+.m-sheet-overlay.open { opacity: 1; }
+.m-sheet {
+  width: 100%;
+  max-width: 34rem; margin: 0 auto;
+  background: var(--surface);
+  border-radius: 18px 18px 0 0;
+  padding: 8px 18px calc(22px + env(safe-area-inset-bottom, 0px));
+  transform: translateY(100%); transition: transform 0.22s ease;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.25);
+}
+.m-sheet-overlay.open .m-sheet { transform: translateY(0); }
+.m-sheet-grab { width: 40px; height: 4px; border-radius: 3px; background: var(--subtle); margin: 4px auto 10px; }
+.m-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.m-sheet-title { font-size: 1.02rem; font-weight: 600; }
+.m-sheet-sub { font-size: 0.86rem; color: var(--muted); line-height: 1.5; margin: 4px 0 14px; }
+/* Emphasised terms (e.g. the Easter Time options) — bold + gold, matching desktop's
+   .doc-empty strong. */
+.m-sheet-sub strong { color: var(--accent-dim); font-weight: 600; }
+.m-sheet-row { display: flex; gap: 10px; margin-top: 14px; }
+.m-sheet-row .m-btn { flex: 1; }
+
+/* New-funeral overlay: stacked context/season groups (reuses .m-menu-h + .m-pills). */
+.nf-group + .nf-group { margin-top: 18px; }
+/* The overlay is nearly full, so tighten its spacing to make room for the Accept
+   footer. Scoped to .nf-sheet so the menu and other bottom sheets keep their
+   defaults. --nf-foot-pad drives BOTH the line→button gap (.nf-foot padding-top)
+   and the button→screen-bottom gap (sheet padding-bottom), so Accept sits with
+   equal padding above (below the line) and below (to the screen edge). */
+.nf-sheet { --nf-foot-pad: calc(16px + env(safe-area-inset-bottom, 0px)); padding-bottom: var(--nf-foot-pad); }
+.nf-sheet .m-sheet-head { margin-bottom: 2px; }
+.nf-sheet .m-menu-h { margin-bottom: 6px; }
+.nf-sheet .m-sheet-sub { margin-bottom: 10px; }
+.nf-foot { margin-top: 18px; border-top: 1px solid var(--border); padding-top: var(--nf-foot-pad); }
+.nf-foot .m-btn { margin-top: 0; }
+
+.m-input {
+  width: 100%; height: 48px; padding: 0 14px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface2); color: var(--text);
+  font-family: inherit; font-size: 1rem; outline: none;
+}
+.m-input:focus { border-color: var(--accent); }
+.m-field-label {
+  display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--muted); margin: 16px 0 6px;
+}
+.m-seg--wide { width: 100%; }
+.m-seg--wide button { flex: 1; min-width: 0; padding: 0 4px; }
+
+.m-btn {
+  width: 100%; min-height: 48px; padding: 0 18px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: transparent; color: var(--text);
+  font-family: inherit; font-size: 0.95rem; font-weight: 500; cursor: pointer;
+  margin-top: 14px; -webkit-tap-highlight-color: transparent;
+}
+.m-btn svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.m-btn:active { background: var(--surface2); }
+.m-btn--primary { background: var(--accent); border-color: var(--accent); color: var(--acc-text); font-weight: 600; }
+.m-btn--danger  { background: var(--doc-red); border-color: var(--doc-red); color: var(--on-solid); font-weight: 600; }
+/* Outlined-red destructive button — matches desktop's .modal-btn.danger (used for
+   the unsaved-changes "Discard"; lower emphasis than the solid-red Delete buttons). */
+.m-btn--danger-outline { color: var(--doc-red); border-color: var(--doc-red); font-weight: 600; }
+.m-btn--danger-outline:active { background: color-mix(in srgb, var(--doc-red) 12%, transparent); }
+.m-btn--confirm { background: var(--confirm); border-color: var(--confirm); color: var(--on-solid); font-weight: 600; }
+.m-btn--confirm:active {
+  background: color-mix(in srgb, var(--confirm) 82%, black);
+  border-color: color-mix(in srgb, var(--confirm) 82%, black);
+}
+
+.m-share-link {
+  word-break: break-all; font-size: 0.82rem; color: var(--muted);
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 14px; line-height: 1.5;
+}
+
+/* ── Add view (full-screen search) ────────────────────────────────────────── */
+.m-add {
+  position: fixed; inset: 0; z-index: 45;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.24s ease;
+}
+.m-add.open { transform: translateX(0); }
+.m-add-head {
+  flex-shrink: 0; height: var(--topbar-h);
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px 0 4px;
+  border-bottom: 1px solid var(--border);
+}
+.m-add-head .m-icon-btn { font-size: 1.7rem; }
+.m-add-title { flex: 1; font-size: 1rem; font-weight: 600; }
+.m-add-status { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+.m-add-searchwrap { position: relative; flex-shrink: 0; padding: 12px 16px; max-width: 34rem; width: 100%; margin: 0 auto; }
+.m-add-search {
+  width: 100%; height: 48px; padding: 0 52px 0 16px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface2); color: var(--text);
+  font-family: inherit; font-size: 1rem; outline: none;
+}
+.m-add-search:focus { border-color: var(--accent); }
+.m-add-search::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+/* Shared quiet field-clear (× inside a text field): borderless, subtle, darkens
+   on press — clearing, not the destructive bordered/red-danger .m-slot-x. Used by
+   the Add-search box and the reader-name field; shown only when non-empty. The
+   element it sits in must be position:relative; `right` is set per context. */
+.m-field-clear {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px;
+  display: none; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--subtle);
+  font-size: 1.4rem; line-height: 1; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-field-clear.visible { display: flex; }
+.m-field-clear:active { color: var(--text); }
+.m-add-searchwrap .m-field-clear { right: 16px; }
+.m-reader-field  .m-field-clear { right: 4px; width: 38px; height: 38px; font-size: 1.2rem; }
+.m-add-results {
+  flex: 1; overflow-y: auto;
+  padding: 0 16px calc(20px + var(--safe-b));
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: 34rem; width: 100%; margin: 0 auto;
+}
+.m-add-empty { color: var(--muted); text-align: center; padding: 32px 16px; }
+
+.m-result {
+  width: 100%; text-align: left;
+  padding: 12px 15px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: transparent; font-family: inherit;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.m-result:active { background: var(--surface2); }
+.m-result-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.m-result-ref { font-size: 0.92rem; font-weight: 600; color: var(--text); }
+.m-result-id { font-size: 0.72rem; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.m-result-excerpt {
+  font-size: 0.82rem; color: var(--muted); margin-top: 5px; line-height: 1.45;
+}
+.m-result--current { border-color: var(--accent); }
+.m-result-cur { color: var(--muted); font-weight: 400; font-size: 0.82em; }
+
+/* ── Browse sheet (per-reading preview) ───────────────────────────────────── */
+.m-browse-overlay {
+  position: fixed; inset: 0; z-index: 70;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; transition: opacity 0.22s;
+}
+.m-browse-overlay.open { opacity: 1; }
+.m-browse-sheet {
+  width: calc(100% - 12px); max-width: 40rem;
+  height: 94dvh; margin-bottom: 6px;
+  background: var(--bg); border-radius: 18px;
+  display: flex; flex-direction: column; overflow: hidden;
+  transform: translateY(100%); transition: transform 0.24s ease;
+  box-shadow: 0 -6px 40px rgba(0,0,0,0.4);
+  touch-action: pan-y;   /* let JS own horizontal/dismiss gestures */
+}
+.m-browse-overlay.open .m-browse-sheet { transform: translateY(0); }
+.m-browse-grab { flex-shrink: 0; width: 40px; height: 4px; border-radius: 3px; background: var(--subtle); margin: 8px auto 2px; }
+.m-browse-head {
+  position: relative; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 6px 52px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.m-browse-nav {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid var(--border); background: transparent; color: var(--text);
+  font-size: 1.35rem; line-height: 1; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.m-browse-nav:disabled { opacity: 0.3; }
+.m-browse-ref { font-size: 0.92rem; font-weight: 600; color: var(--text); text-align: center; min-width: 0; line-height: 1.3; }
+.mr-ref-loc { white-space: nowrap; }
+.m-browse-close { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
+.m-browse-scroll { flex: 1; overflow-y: auto; padding: 22px 22px 28px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.m-browse-foot {
+  flex-shrink: 0; padding: 12px 16px calc(12px + var(--safe-b));
+  border-top: 1px solid var(--border);
+}
+.m-browse-foot .m-btn { margin-top: 0; }
+
+/* Clean reading typography — EB Garamond, sense-lines, hanging indent. */
+.m-reading {
+  font-family: 'EB Garamond', Georgia, 'Palatino Linotype', serif;
+  font-size: 1.3rem; line-height: calc(17 / 14);   /* matches the desktop 14/17 ratio */
+  color: var(--text);
+  font-variant-numeric: oldstyle-nums; font-variant-ligatures: common-ligatures;
+}
+/* Intro reads in the same face/size/colour as the body. */
+.mr-line { display: block; padding-left: 1em; text-indent: -1em; }
+.mr-line-indent { display: block; text-indent: 1em; }
+.mr-gap { display: block; height: 0.7em; }
+/* ℟ and the gospel cross are red and regular weight (EB Garamond ships no bold,
+   so any synthesized weight looks wrong). */
+.mr-glyph { color: var(--doc-red); }
+.mr-cross { font-family: 'Gospel Cross', 'EB Garamond', Georgia, 'Palatino Linotype', serif; margin-right: 0.5em; color: var(--doc-red); }
+
+/* ── Preview screen (assembled funeral) ───────────────────────────────────── */
+.m-preview {
+  position: fixed; inset: 0; z-index: 46;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.26s ease;
+}
+.m-preview.open { transform: translateY(0); }
+.m-preview-head {
+  flex-shrink: 0; height: var(--topbar-h);
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 8px 0 4px;
+  border-bottom: 1px solid var(--border);
+}
+.m-preview-head .m-icon-btn { font-size: 1.7rem; }
+.m-preview-title { flex: 1; font-size: 1rem; font-weight: 600; }
+.m-preview-scroll { flex: 1; overflow-y: auto; padding: 24px 16px calc(20px + var(--safe-b)); }
+.m-preview-foot {
+  flex-shrink: 0; display: flex; gap: 10px;
+  padding: 8px 12px calc(8px + var(--safe-b));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.m-preview-foot .m-btn { flex: 1; height: 48px; min-height: 48px; margin-top: 0; }
+.m-pv-empty {
+  color: var(--muted); text-align: center; padding: 44px 16px;
+  font-family: 'Source Sans 3', system-ui, sans-serif; font-size: 0.95rem; line-height: 1.5;
+}
+
+.m-preview-doc {
+  font-family: 'EB Garamond', Georgia, 'Palatino Linotype', serif;
+  font-size: 1.22rem; line-height: calc(17 / 14); color: var(--text);
+  font-variant-numeric: oldstyle-nums; font-variant-ligatures: common-ligatures;
+  max-width: 32rem; margin: 0 auto;
+}
+.pv-divider { border-top: 1px solid var(--border); margin: 1.7em 0; }
+.pv-blank-verso { display: none; }   /* print-only (an empty page after the title) */
+.pv-sub {
+  text-align: center; font-variant-caps: all-small-caps;
+  font-feature-settings: "smcp" 1, "c2sc" 1; letter-spacing: 0.05em;
+  font-size: 0.86em; margin-bottom: 0.45em;
+}
+.pv-ref-line { display: flex; align-items: baseline; font-size: 0.82em; margin-bottom: 0.5em; }
+.pv-ref { margin-left: auto; }
+.pv-id { font-variant-caps: all-small-caps; font-feature-settings: "smcp" 1; }
+.pv-id-tail { font-variant-caps: normal; font-feature-settings: normal; }
+.pv-reader { font-style: italic; font-size: 0.88em; margin-bottom: 0.3em; }
+/* Title page — matches desktop: body size, no inter-line spacing; only FUNERAL
+   is tracked (0.1em); name in all-small-caps, regular weight; date plain.
+   Vertically centred 40/60 (flex 2 above : 3 below), like the desktop. */
+.pv-title {
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center;
+  min-height: 75vh;
+}
+.pv-title::before { content: ''; flex: 2; }
+.pv-title::after  { content: ''; flex: 3; }
+.pv-title-funeral { text-transform: uppercase; letter-spacing: 0.1em; }
+.pv-title-name {
+  font-variant-caps: all-small-caps; font-feature-settings: "smcp" 1, "c2sc" 1;
+  font-weight: normal; letter-spacing: 0.05em;
+}
+.pv-rubric { font-style: italic; font-size: 0.9em; margin-top: 0.25em; }
+.pv-petition { margin-top: 0.55em; }
+.pv-response { margin: 0.1em 0 0.2em; }
+
+/* Colour mode — red accents; B&W mutes them and italicises refs. */
+.pv-color .pv-ref, .pv-color .pv-id, .pv-color .pv-sub, .pv-color .pv-reader,
+.pv-color .pv-rubric, .pv-color .pv-title-name, .pv-color .pv-title-date { color: var(--doc-red); }
+.pv-bw .mr-glyph, .pv-bw .mr-cross { color: currentColor; }
+.pv-bw .pv-ref, .pv-bw .pv-id { font-style: italic; }
+.pv-ph, .pv-color .pv-ph { color: var(--doc-red); }
+.pv-bw .pv-ph { color: currentColor; font-style: italic; }
+/* Pronoun-alternative brackets, e.g. "he (she)": red in Colour, black in B&W. */
+.pv-color .pv-alt { color: var(--doc-red); }
+.pv-bw .pv-alt { color: currentColor; }
+
+/* ── Drop caps ─────────────────────────────────────────────────────────────────
+   PORT-AND-NOTE (CLAUDE.md drop-cap parity): the styling/sizing constants below
+   mirror index.html's `.drop-caps .r-drop-cap` rules — keep them identical to the
+   desktop + calibration-tool copies. The per-line shape-outside polygon is set in
+   JS (applyDropCapShapes); these rules only size/float the cap and small-cap the
+   follow text. Engine: mobile.js drop-cap section. */
+.r-drop-follow {
+  font-variant-caps: small-caps;
+  font-feature-settings: "smcp" 1;
+  letter-spacing: 0.025em;
+}
+.drop-caps .r-drop-cap {
+  float: left;
+  font-family: 'Cormorant Garamond', 'EB Garamond', serif;
+  font-size: 2.999em;
+  line-height: 1;
+  height: 0.883em;
+  overflow: hidden;
+  margin-top: -0.143em;
+  margin-left: var(--r-drop-offset, 0);
+  padding-right: 0.07em;
+}
+.drop-caps .r-drop-cap--desc {
+  font-size: 2.551em;
+  height: auto;
+  overflow: visible;
+  margin-top: -0.157em;
+}
+/* J overrides --desc: shrunk so its deep tail (descender 0.250 vs Q's 0.1875)
+   rises to the same depth as Q's, with the cap-top held on line-1's 'l'-top. */
+.drop-caps .r-drop-cap--descj {
+  font-size: 2.299em;
+  margin-top: -0.133em;
+}
+.drop-caps.pv-color .r-drop-cap { color: var(--doc-red); }
+.r-drop-2nd { display: inline-block; width: 0; }
+/* Reserve space on screen so an opening-quote / hanging-cap overhang (widest is an
+   open double quote, −0.68em) isn't clipped at the doc's left edge. In print the
+   per-page .pv-block padding (≥0.62in) already dwarfs the hang, so it's reset
+   there (see @media print) to keep the page margin exact. */
+.m-preview-doc.drop-caps { padding-left: 1.1em; }
+
+/* ── Open-from-library view ───────────────────────────────────────────────── */
+.m-lib {
+  position: fixed; inset: 0; z-index: 55;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.24s ease;
+}
+.m-lib.open { transform: translateX(0); }
+.m-lib-head {
+  flex-shrink: 0; height: var(--topbar-h);
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 8px 0 4px;
+  border-bottom: 1px solid var(--border);
+}
+.m-lib-head .m-icon-btn { font-size: 1.7rem; }
+.m-lib-title { flex: 1; font-size: 1rem; font-weight: 600; }
+.m-lib-body {
+  flex: 1; overflow-y: auto;
+  padding: 8px 16px calc(28px + var(--safe-b));
+  max-width: 34rem; width: 100%; margin: 0 auto;
+}
+.m-lib-section { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.m-lib-section:last-child { border-bottom: none; }
+.m-lib-empty { color: var(--muted); padding: 6px 0; font-size: 0.9rem; }
+.m-lib-item {
+  display: flex; align-items: stretch;
+  border: 1px solid var(--border); border-radius: 12px;
+  margin-bottom: 8px; overflow: hidden;
+}
+.m-lib-open {
+  flex: 1; min-width: 0; text-align: left;
+  background: transparent; border: none; padding: 12px 14px;
+  cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent;
+}
+.m-lib-open:active { background: var(--surface2); }
+.m-lib-name { font-size: 0.95rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-lib-cur { color: var(--muted); font-weight: 400; font-size: 0.85em; }
+.m-lib-meta { font-size: 0.74rem; color: var(--muted); margin-top: 3px; }
+.m-lib-act {
+  flex-shrink: 0; border: none; border-left: 1px solid var(--border);
+  background: transparent; color: var(--muted);
+  font-family: inherit; font-size: 0.78rem; padding: 0 13px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.m-lib-act:active { background: var(--surface2); color: var(--text); }
+.m-lib-act--del { font-size: 0.95rem; }
+.m-lib-act--del:active { background: var(--danger); color: var(--on-solid); }
+
+/* ── Print (mobile is a convenience; desktop is the full-fidelity path) ────── */
+@media print {
+  html[data-layout="mobile"] body { overflow: visible; height: auto; background: var(--doc-paper); }
+  #m-root, .m-add, .m-menu, .m-browse-overlay, .m-sheet-overlay, .m-toast,
+  .m-preview-head, .m-preview-foot { display: none !important; }
+  .m-preview { position: static; transform: none; display: block; background: var(--doc-paper); }
+  .m-preview-scroll { overflow: visible; padding: 0; }
+  .m-preview-doc { color: var(--doc-ink); max-width: none; font-size: var(--doc-pt, 14pt); }
+
+  /* Each reading on its own page; the on-screen dividers don't print. Margins are
+     applied as per-page block padding rather than via @page, because iOS Safari
+     ignores @page margins (each block starts a page, so its padding = the page
+     margin). */
+  .pv-divider { display: none; }
+  .m-preview-doc > .pv-block { break-before: page; padding: 0.8in var(--page-pad-x, 1.13in); }
+  .m-preview-doc > .pv-block:first-child { break-before: auto; }
+  .pv-blank-verso { display: block; break-before: page; break-after: page; height: 0; }
+  /* Break only between clause groups, never inside one; never orphan the last
+     line; keep each psalm stanza + its response and each petition + its response
+     together. (Mirrors the desktop rules.) */
+  .mr-group { break-inside: avoid; }
+  .mr-group--last { break-before: avoid; }
+  .mr-psalm-unit { break-inside: avoid; }
+  .pv-petition-unit { break-inside: avoid; }
+  /* Conclusion never orphaned — guards the drop-cap ≤3-line case where the
+     terminal sits bare in .r-body-dropcap (the normal path keeps it in
+     .mr-group--last). Mirrors desktop .r-terminal / .r-gap--term. */
+  .mr-terminal, .mr-gap--term { break-before: avoid; }
+  .pv-title { min-height: 0; height: 9in; }   /* 40/60 centring within the page */
+
+  /* Drop caps: per-page block padding handles the hang, so drop the screen
+     reserve to keep the page margin exact; restore print colours. */
+  .m-preview-doc.drop-caps { padding-left: 0; }
+  .drop-caps.pv-color .r-drop-cap { color: var(--doc-red-print); }
+  .drop-caps.pv-bw .r-drop-cap { color: var(--doc-ink); }
+
+  /* Restore print colours regardless of screen theme (red accents in Colour). */
+  .pv-color .pv-sub, .pv-color .pv-ref, .pv-color .pv-id, .pv-color .pv-reader,
+  .pv-color .pv-rubric, .pv-color .pv-ph, .pv-color .pv-alt, .pv-color .pv-title-name,
+  .pv-color .pv-title-date, .pv-color .mr-glyph, .pv-color .mr-cross { color: var(--doc-red-print); }
+  .pv-bw .pv-sub, .pv-bw .pv-ref, .pv-bw .pv-id, .pv-bw .pv-reader, .pv-bw .pv-rubric,
+  .pv-bw .pv-title-name, .pv-bw .pv-title-date, .pv-bw .mr-glyph, .pv-bw .mr-cross { color: var(--doc-ink); }
+
+  /* margin:0 so the block padding above is the only inset (works whether or not
+     the browser honours @page margins). */
+  @page { size: letter; margin: 0; }
+}
+
+/* ── Toast ────────────────────────────────────────────────────────────────── */
+.m-toast {
+  position: fixed; left: 50%; bottom: calc(var(--bar-h) + var(--safe-b) + 18px);
+  transform: translate(-50%, 14px); z-index: 90;
+  background: var(--text); color: var(--bg);
+  font-size: 0.85rem; padding: 10px 16px; border-radius: 10px;
+  max-width: 84vw; text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.m-toast.show { opacity: 1; transform: translate(-50%, 0); }

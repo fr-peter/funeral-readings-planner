@@ -1,0 +1,18 @@
+Juuji — gospel cross glyph
+==========================
+
+File shipped: public/fonts/juuji-cross.woff2 (~2 KB)
+
+This is a single-glyph subset of the "Juuji" typeface by Luc Devroye,
+containing only the cross glyph, remapped onto U+2720 MALTESE CROSS and
+shrunk/shifted for use before the Gospel introduction.
+
+Source:
+  https://luc.devroye.org/maltesecrosses.html
+
+License / permission:
+  The author's page does not name a specific license. It states plainly
+  that "These fonts are free." This subset is redistributed on the basis
+  of that statement. No formal license grant (e.g. OFL, public-domain
+  dedication) was located; explicit clarification from the author has not
+  been obtained. If you reuse this glyph, consider contacting the author.

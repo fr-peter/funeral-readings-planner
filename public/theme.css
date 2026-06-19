@@ -1,0 +1,75 @@
+/*
+ * Funeral Readings Planner: A resource for planning & printing Catholic funeral readings in Canada
+ * Copyright (C) 2026 Fr Peter Do
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+/* ─────────────────────────────────────────────────────────────────────────────
+   THEME TOKENS — the app's customizable colour surface.
+
+   This file lives in public/ and is copied VERBATIM into dist/ (no hashing, no
+   bundling), so it can be edited in a deployed build without rebuilding. It is
+   loaded first in index.html's <head>, ahead of the component styles, and the
+   tokens are consumed by both the desktop styles (index.html) and the mobile
+   bundle (mobile.css). Changing a value here re-skins the whole app.
+
+   Two groups:
+   • CHROME — the app shell (background, surfaces, accent, text). These vary by
+     theme (dark default / .light) and are the colours you'd retune to match a
+     host site. The two theme-independent UI accents (--danger, --on-solid) live
+     in :root and apply to both themes.
+   • DOCUMENT (paper / print) — the printed readings. These are fixed liturgical
+     /print conventions (red rubrics, black ink on white paper) and are NOT meant
+     to be customized to match a website. Defined once in :root; they apply in
+     both themes because they are not overridden in html.light.
+
+   (A fuller "split chrome vs document into named override groups + a documented
+   embedding/theming surface" is tracked in todo.md as a future feature.)
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── Chrome — dark (default) ─────────────────────────────────────────────────*/
+:root {
+  --bg:       #161618;
+  --surface:  #242426;
+  --surface2: #2e2e30;
+  --border:   rgba(255,255,255,0.09);
+  --text:     #ededea;
+  --muted:    #9a9a96;
+  --subtle:   #78787c;   /* ≥3:1 on surface/bg (WCAG UI/large); faint tier below --muted */
+  --accent:     #b89a68;
+  --accent-dim: #897a63;
+  --acc-text: #1a1610;
+  --check-svg: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.5 5l2.5 3 4.5-6' stroke='%231a1610' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --confirm:  #5a9e6e;
+  --doc-red:  #c07a6d;   /* on-SCREEN rubric red (desaturated for the dark preview) */
+
+  /* Theme-independent UI accents (apply to both dark + light) */
+  --danger:   #c0392b;   /* destructive actions: delete/remove hovers, confirm-yes */
+  --on-solid: #fff;      /* text on a filled accent/confirm/danger button */
+
+  /* Document (paper / print) — fixed liturgical constants; do NOT theme these */
+  --doc-ink:       #1a1a1a;   /* body ink on paper / in the light preview + print */
+  --doc-paper:     #fff;      /* paper background in print */
+  --doc-red-print: #c0392b;   /* rubric red on paper (always, regardless of screen theme) */
+}
+
+/* ── Chrome — light ──────────────────────────────────────────────────────────*/
+html.light {
+  --bg:       #edeae4;
+  --surface:  #faf8f4;
+  --surface2: #f0ede7;
+  --border:   rgba(0,0,0,0.10);
+  --text:     #18180e;
+  --muted:    #6a6a62;
+  --subtle:   #807d70;   /* ≥3:1 on surface/bg (WCAG UI/large); faint tier below --muted */
+  --accent:     #8a6630;
+  --accent-dim: #9c8868;
+  --acc-text: #fff;
+  --check-svg: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1.5 5l2.5 3 4.5-6' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --confirm:  #3d8a57;
+  --doc-red:  #c0392b;
+}

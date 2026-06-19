@@ -1,0 +1,58 @@
+[
+  {
+    "id": "adult",
+    "label": "Funeral of an Adult",
+    "adult": true,
+    "child": false,
+    "unbaptizedchild": false,
+    "intro": "Brethren, let us join together in praying to the Lord God,\nnot only for our departed {{brother_sister}},\nbut also for the Church, for the peace of the world,\nand for our salvation.",
+    "response": "Lord, hear our prayer.",
+    "petitions": [
+      "For all the shepherds of the Church,\nthat they may fulfill the words they preach,\nlet us pray to the Lord.",
+      "For all those in public office,\nthat they may promote justice and peace,\nlet us pray to the Lord.",
+      "For all those who bear the cross of pain in mind or body\nthat they may never feel forsaken by God,\nlet us pray to the Lord.",
+      "That God may deliver the soul of his servant {{name}}\nfrom punishment and from the powers of darkness,\nlet us pray to the Lord.",
+      "That God in his mercy may blot out all {{his}} sins,\nlet us pray to the Lord.",
+      "That God may establish {{him}} in the realm of peace and light,\nlet us pray to the Lord.",
+      "That God may grant {{him}} blessedness\nand communion with the saints and the elect,\nlet us pray to the Lord.",
+      "For our deceased relatives, friends, and benefactors,\nthat God may admit them into the light of his splendour,\nlet us pray to the Lord.",
+      "For all the faithful departed,\nthat God may gather them into the kingdom of heaven,\nlet us pray to the Lord."
+    ],
+    "closing": "O God,\nCreator and Redeemer of all the faithful,\ngrant to the souls of your servants\nthe remission of all their sins;\nthat through our faithful supplications\nthey may obtain the pardon they have always desired.\nThrough Christ our Lord."
+  },
+  {
+    "id": "baptized-child",
+    "label": "Funeral of a Baptized Child",
+    "adult": false,
+    "child": true,
+    "unbaptizedchild": false,
+    "intro": "Jesus is the Son of God and the pattern of our own creation.\nHis promise is that one day we shall truly be like him.\nWith our hope founded on that promise, we pray:",
+    "response": "Lord, hear our prayer.",
+    "petitions": [
+      "That God will receive our praise and thanksgiving\nfor the life of {{name}},\nlet us pray to the Lord.",
+      "That God will bring to completion {{name}}’s Baptism into Christ,\nlet us pray to the Lord.",
+      "That God will lead {{name}} from death to life,\nlet us pray to the Lord.",
+      "That all of us, {{name}}’s family and friends,\nmay be comforted in our grief,\nlet us pray to the Lord.",
+      "That God will grant release to those who suffer,\nlet us pray to the Lord.",
+      "That God will grant peace to all who have died\nin the faith of Christ,\nlet us pray to the Lord."
+    ],
+    "closing": "Grant, we beseech you, O Lord,\nthrough the intercession of Mary, the Mother of God,\nthat she who stood by her Son dying upon the cross,\nmay assist us who mourn,\nand bestow upon us the consolation and reward of her faith.\nThrough Christ our Lord."
+  },
+  {
+    "id": "unbaptized-child",
+    "label": "Funeral of an Unbaptized Child",
+    "adult": false,
+    "child": false,
+    "unbaptizedchild": true,
+    "intro": "Christ has promised that we shall receive\nwhatever we ask in his name.\nLet us ask our Father in Christ’s name\nto help us in our time of sorrow.",
+    "response": "Lord, hear our prayer.",
+    "petitions": [
+      "For {{name}},\nthat {{he}} be held securely in God’s loving embrace\nnow and for all eternity,\nlet us pray to the Lord.",
+      "For {{name}}’s family, especially {{his}} mother and father,\n[{{his}} brother(s) and sister(s)],\nthat they experience the healing power of Christ\nin the midst of their pain and grief,\nlet us pray to the Lord.",
+      "For {{name}}’s friends\nand those who cared for {{him}},\nthat they be consoled in their loss\nand strengthened in their love for one another,\nlet us pray to the Lord.",
+      "For the whole Church,\nthat we may prepare worthily for the hour of our death,\nwhen God will call us by name to pass from this world to the next,\nlet us pray to the Lord.",
+      "For all the faithful departed,\nthat they be admitted into the joys of eternal life,\nlet us pray to the Lord."
+    ],
+    "closing": "Grant, we beseech you, O Lord,\nthrough the intercession of Mary, the Mother of God,\nthat she who stood by her Son dying upon the cross,\nmay assist us who mourn,\nand bestow upon us the consolation and reward of her faith.\nThrough Christ our Lord."
+  }
+]
