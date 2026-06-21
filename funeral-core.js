@@ -271,6 +271,40 @@ export function restoreOnBoot() {
   } catch {}
 }
 
+// ── Sharing: canonical link, name, email (shared by desktop + mobile) ─────────
+// The packaged desktop (Tauri) app serves the page from a tauri:// origin, so a
+// link built from location.* would be useless off-device. Point shared links at
+// the public GitHub Pages deployment instead. On the web we keep whatever host
+// actually serves the app, so self-hosting stays self-contained.
+const IS_TAURI = typeof window !== 'undefined' &&
+  ('__TAURI_INTERNALS__' in window || location.protocol === 'tauri:');
+export const PAGES_URL = 'https://fr-peter.github.io/funeral-readings-planner/';
+export function shareBaseUrl() {
+  return IS_TAURI ? PAGES_URL : location.origin + location.pathname;
+}
+export function shareUrl(code) {
+  return shareBaseUrl() + '#' + code;
+}
+// Best name for this funeral: the saved library name if it's a saved funeral,
+// otherwise the title/petition name the user has typed.
+export function shareName() {
+  const fid = getCurrentFuneralId();
+  if (fid) { const e = libFind(fid); if (e && e.name) return e.name; }
+  return (state.titleName || state.name || '').trim();
+}
+// Open the user's mail client with a prefilled message linking to the funeral.
+export function emailShare(code) {
+  const url = shareUrl(code);
+  const name = shareName();
+  const subject = name ? `Funeral Readings Planner — ${name}` : 'Funeral Readings Planner';
+  const body = (name ? `Here is the funeral reading selection for ${name}.`
+                     : 'Here is a funeral reading selection.')
+    + `\n\nOpen this link to view and print it:\n${url}\n`;
+  const a = document.createElement('a');
+  a.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  a.click();
+}
+
 // ── Named funeral library (data layer) ───────────────────────────────────────
 export const LIB_KEY = 'fr.library.v1';
 

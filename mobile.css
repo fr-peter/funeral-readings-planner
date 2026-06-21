@@ -348,12 +348,6 @@ html[data-layout="mobile"] body {
   border-color: color-mix(in srgb, var(--confirm) 82%, black);
 }
 
-.m-share-link {
-  word-break: break-all; font-size: 0.82rem; color: var(--muted);
-  background: var(--surface2); border: 1px solid var(--border); border-radius: 12px;
-  padding: 12px 14px; line-height: 1.5;
-}
-
 /* ── Add view (full-screen search) ────────────────────────────────────────── */
 .m-add {
   position: fixed; inset: 0; z-index: 45;

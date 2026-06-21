@@ -14,15 +14,40 @@
 // share (a shared link opens in the recipient's own theme; see share.js). Shared
 // by desktop + mobile; each view updates its own theme-toggle button after
 // calling applyTheme (desktop updateThemeIcon, mobile updateThemeButton).
+//
+// With no saved choice the app follows the OS (prefers-color-scheme), both at
+// startup and live, until the user explicitly toggles — which then sticks.
 export const THEME_KEY = 'fr.theme';
 export const currentTheme = () => document.documentElement.classList.contains('light') ? 'light' : 'dark';
 
-export function applyTheme(theme) {
+const systemTheme = () =>
+  (typeof window !== 'undefined' && window.matchMedia
+    && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+const savedTheme = () => {
+  try { const t = localStorage.getItem(THEME_KEY); return (t === 'light' || t === 'dark') ? t : null; }
+  catch { return null; }
+};
+
+// Apply a theme to <html>. `persist` defaults to true so an explicit user choice
+// is remembered; the startup system default is applied with persist=false so the
+// app keeps tracking the OS rather than freezing the resolved value.
+export function applyTheme(theme, persist = true) {
   document.documentElement.className = theme === 'light' ? 'light' : 'dark';
-  try { localStorage.setItem(THEME_KEY, theme); } catch {}
+  if (persist) { try { localStorage.setItem(THEME_KEY, theme); } catch {} }
 }
 
-// Apply the persisted theme (defaulting to dark). Call once at startup.
-export function initTheme() {
-  applyTheme(localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark');
+// Apply the saved theme, or follow the OS when none is saved. While unsaved, also
+// track live OS changes; `onChange` lets the calling view re-sync its toggle
+// button. Call once at startup.
+export function initTheme(onChange) {
+  const saved = savedTheme();
+  if (saved) { applyTheme(saved); return; }
+  applyTheme(systemTheme(), false);
+  try {
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+      if (savedTheme()) return;            // user has chosen since — stop following
+      applyTheme(systemTheme(), false);
+      if (onChange) onChange();
+    });
+  } catch {}
 }

@@ -22,6 +22,7 @@ import {
   makePrayersForContext, configure, scheduleCommit, commitNow, restoreOnBoot, isDirty, isBlank,
   getCurrentFuneralId, setCurrentFuneralId, loadLibrary, saveLibrary, libFind,
   saveFuneral, newFuneral, openFuneral, loadDoc, docFromState,
+  shareUrl, emailShare,
 } from './funeral-core.js';
 import { applyDropCap, applyDropCapShapes } from './dropcap.js';
 import { exportAll, importAll, fitExcerpts, fmtDate } from './library-io.js';
@@ -40,8 +41,8 @@ function searchModule() {
 }
 
 // Theme (device-local) lives in the shared theme.js; mobile refreshes its menu
-// toggle via updateThemeButton at the toggle site below.
-initTheme();
+// toggle via updateThemeButton (also on live OS-theme changes while unset).
+initTheme(updateThemeButton);
 
 // ── Labels ───────────────────────────────────────────────────────────────────
 const CTX_LABEL    = { adult: 'General use', child: 'Baptized Child', unbaptized: 'Unbaptized Child' };
@@ -540,23 +541,21 @@ function onSave() { saveThen(null); }
 function onShare() {
   let code;
   try { code = encode(docFromState()); } catch { toast('Nothing to share yet.'); return; }
-  const url = location.origin + location.pathname + '#' + code;
+  const url = shareUrl(code);
   openSheet({
     title: 'Share this funeral',
     bodyHTML: `
       <p class="m-sheet-sub">Anyone with this link can open and print these readings.</p>
-      <div class="m-share-link" id="m-share-link">${esc(url)}</div>
       <div class="m-sheet-row">
         <button class="m-btn m-btn--primary" id="m-copy-link">Copy link</button>
-        <button class="m-btn" id="m-copy-code">Copy code</button>
+        <button class="m-btn" id="m-email">Email</button>
       </div>`,
     onMount(body) {
-      const copy = (text, msg) => {
-        if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast(msg), () => toast('Copy failed'));
+      body.querySelector('#m-copy-link').addEventListener('click', () => {
+        if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast('Link copied!'), () => toast('Copy failed'));
         else toast('Copy not supported');
-      };
-      body.querySelector('#m-copy-link').addEventListener('click', () => copy(url, 'Link copied!'));
-      body.querySelector('#m-copy-code').addEventListener('click', () => copy(code, 'Code copied!'));
+      });
+      body.querySelector('#m-email').addEventListener('click', () => emailShare(code));
     },
   });
 }

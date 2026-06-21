@@ -1,0 +1,27 @@
+[package]
+name = "funeral-readings-planner"
+version = "0.1.0"
+description = "Funeral Readings Planner — Catholic funeral liturgy reading selection and print"
+authors = ["Fr Peter Do"]
+edition = "2021"
+rust-version = "1.77.2"
+
+# The library half of the app; main.rs is a thin wrapper around it so the same
+# entry point can later be reused for mobile if ever needed.
+[lib]
+name = "funeral_readings_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[profile.release]
+# Smaller, slower-to-build binaries — fine for a desktop utility.
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

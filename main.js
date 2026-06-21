@@ -22,6 +22,7 @@ import {
   getCurrentFuneralId, setCurrentFuneralId, setLoading,
   loadLibrary, saveLibrary, libFind, blankDoc, isDirty, isBlank,
   loadDoc, newFuneral, openFuneral, saveFuneral,
+  shareUrl, shareName, emailShare,
 } from './funeral-core.js';
 import { applyDropCap, applyDropCapShapes, clearDCAdvCache } from './dropcap.js';
 import { exportAll, importAll, fitExcerpts, fmtDate } from './library-io.js';
@@ -1483,15 +1484,9 @@ function confirmSave() {
 function openShare() {
   let code; try { code = encode(docFromState()); } catch { return; }
   const inp = document.getElementById('share-link');
-  inp.value = location.origin + location.pathname + '#' + code;
-  inp.dataset.code = code;
+  inp.value = shareUrl(code);
   document.getElementById('share-copied').style.display = 'none';
   showModal('share-overlay');
-}
-function shareName() {
-  const fid = getCurrentFuneralId();
-  if (fid) { const e = libFind(fid); if (e && e.name) return e.name; }
-  return (state.titleName || state.name || '').trim();
 }
 const escapeAttr = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 function showCopied(msg) {
@@ -1504,10 +1499,9 @@ function copyPlain(text, msg) {
   else fallback();
 }
 // Copy link writes BOTH a rich <a> (pretty link in rich editors / mail / Word) and
-// the plain URL (address bar, plain-text fields). Copy code is always plain text.
-async function copyShare(asLink) {
+// the plain URL (address bar, plain-text fields).
+async function copyShare() {
   const inp = document.getElementById('share-link');
-  if (!asLink) { copyPlain(inp.dataset.code, 'Code copied!'); return; }
   const url = inp.value;
   const label = shareName() || 'Funeral reading selection';
   if (navigator.clipboard && window.ClipboardItem) {
@@ -1522,17 +1516,6 @@ async function copyShare(asLink) {
     } catch { /* fall through to plain copy */ }
   }
   copyPlain(url, 'Link copied!');
-}
-function emailShare() {
-  const url = document.getElementById('share-link').value;
-  const name = shareName();
-  const subject = name ? `Funeral Readings Planner — ${name}` : 'Funeral Readings Planner';
-  const body = (name ? `Here is the funeral reading selection for ${name}.`
-                     : 'Here is a funeral reading selection.')
-    + `\n\nOpen this link to view and print it:\n${url}\n`;
-  const a = document.createElement('a');
-  a.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  a.click();
 }
 
 function renderLibrary() {
@@ -1565,7 +1548,7 @@ function updateThemeIcon() {
 
 function initFuneralActions() {
   document.getElementById('fb-theme').addEventListener('click', toggleTheme);
-  initTheme();
+  initTheme(updateThemeIcon);
   updateThemeIcon();
 
   document.getElementById('fb-new').addEventListener('click', () => guardThen(newFuneral));
@@ -1622,9 +1605,8 @@ function initFuneralActions() {
   document.getElementById('save-name').addEventListener('keydown', e => { if (e.key === 'Enter') confirmSave(); });
 
   document.getElementById('share-close').addEventListener('click', () => hideModal('share-overlay'));
-  document.getElementById('share-copy-link').addEventListener('click', () => copyShare(true));
-  document.getElementById('share-copy-code').addEventListener('click', () => copyShare(false));
-  document.getElementById('share-email').addEventListener('click', emailShare);
+  document.getElementById('share-copy-link').addEventListener('click', () => copyShare());
+  document.getElementById('share-email').addEventListener('click', () => { try { emailShare(encode(docFromState())); } catch {} });
 
   document.getElementById('confirm-cancel').addEventListener('click', () => { _pendingAction = null; hideModal('confirm-overlay'); });
   document.getElementById('confirm-discard').addEventListener('click', () => {
