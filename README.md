@@ -2,7 +2,7 @@
 
 *A resource for planning & printing Catholic funeral readings in Canada.*
 
-A small, self-contained web app that helps you choose the readings for a Catholic funeral liturgy and produce a clean, print-quality PDF of the selected readings. The readings are taken from the liturgical books approved for use in Canada.
+A small, self-contained web app that helps you choose the readings for a Catholic funeral liturgy and produce a clean, print-quality PDF of the selected readings. The readings are taken from the liturgical books approved for use in Canada. Download the desktop verions [here](https://github.com/fr-peter/funeral-readings-planner/releases/tag/v1.0.0), or use it online [here](https://fr-peter.github.io/funeral-readings-planner/).
 
 ## Features
 
