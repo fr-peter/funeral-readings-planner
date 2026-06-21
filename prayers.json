@@ -5,7 +5,7 @@
     "adult": true,
     "child": false,
     "unbaptizedchild": false,
-    "intro": "Brethren, let us join together in praying to the Lord God,\nnot only for our departed {{brother_sister}},\nbut also for the Church, for the peace of the world,\nand for our salvation.",
+    "intro": "Brothers and sisters, let us join together in praying to the Lord God,\nnot only for our departed {{brother_sister}},\nbut also for the Church, for the peace of the world,\nand for our salvation.",
     "response": "Lord, hear our prayer.",
     "petitions": [
       "For all the shepherds of the Church,\nthat they may fulfill the words they preach,\nlet us pray to the Lord.",

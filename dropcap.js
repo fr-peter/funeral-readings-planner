@@ -274,5 +274,12 @@ export function applyDropCap(lineHtml) {
     }
   }
 
-  return `<span class="${dropClass}"${styleAttr}>${dropHtml}</span><span class="r-drop-follow">${rest.slice(0, wrapEnd)}</span>${rest.slice(wrapEnd)}`;
+  let followInner = rest.slice(0, wrapEnd);
+  // A single-letter first word (e.g. "O God") makes the drop cap a whole word, so
+  // the follow span begins with the space before the next word. That space lands at
+  // the start of the line beside the floated drop cap and gets collapsed away
+  // ("OGod"). Pin it with a non-breaking space so it always prints.
+  if (firstWordLen === 1) followInner = followInner.replace(/^\s+/, '&nbsp;');
+
+  return `<span class="${dropClass}"${styleAttr}>${dropHtml}</span><span class="r-drop-follow">${followInner}</span>${rest.slice(wrapEnd)}`;
 }

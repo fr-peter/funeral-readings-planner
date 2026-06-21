@@ -546,11 +546,18 @@
       cursor: pointer;
       transition: background 0.15s, color 0.15s;
     }
-    .seg button + button { border-left: 1px solid var(--border); }
-    /* Two-option toggles: equal columns (sized to the wider label) so each label
-       centers in an equal half — otherwise content-sized buttons make the shorter
-       label (e.g. "Large") sit too close to the box edge. */
-    #seg-fontsize, #seg-color { display: grid; grid-template-columns: 1fr 1fr; }
+    /* The 1px left border sits inside this button's content box (border-box), so a
+       centred label lands 1px right of centre (more padding on the left). Add 1px
+       of right padding to rebalance it. */
+    .seg button + button { border-left: 1px solid var(--border); padding-right: 14px; }
+    /* Two-option toggles: equal columns so each label centres in an equal half —
+       otherwise the buttons are content-sized and the shorter label (e.g. "Large")
+       sits in a narrower box, looking off-centre against the control. A definite
+       width is required: this seg is a shrink-to-fit flex item in its row, and with
+       an indefinite width `1fr 1fr` can't shrink the wider label ("Normal") below
+       its min-content, so it never splits evenly. 7.7rem ≥ 2× the widest label
+       (+ slack for font fallback); flex-shrink:0 stops the row from undercutting it. */
+    #seg-fontsize, #seg-color { display: grid; grid-template-columns: 1fr 1fr; width: 7.7rem; flex-shrink: 0; }
     /* Sex control: Male/Female equal (sized to the wider, Female); Unspecified auto (widest) */
     #prayers-seg-sex { display: grid; grid-template-columns: 1fr auto 1fr; }
     .seg button.active { background: var(--accent); color: var(--acc-text); }

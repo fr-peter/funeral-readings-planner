@@ -543,8 +543,21 @@ html[data-layout="mobile"] body {
   font-variant-caps: all-small-caps; font-feature-settings: "smcp" 1, "c2sc" 1;
   font-weight: normal; letter-spacing: 0.05em;
 }
-.pv-rubric { font-style: italic; font-size: 0.9em; margin-top: 0.25em; }
+.pv-rubric {
+  font-style: italic; font-size: 0.9em;
+  /* Match desktop's prayer-rubric spacing (Priest: / Reader:). Before: desktop's
+     0.75lh section gap (its r-gap), measured at the doc base size — the /0.9
+     cancels this element's own 0.9em so the gap equals the base-size gap. After:
+     0.2em, desktop's .prayer-rubric margin-bottom, which is also desktop print's
+     after-rubric gap once the +Add-petition button is hidden. */
+  margin-top: calc(0.75lh / 0.9);
+  margin-bottom: 0.2em;
+}
 .pv-petition { margin-top: 0.55em; }
+/* The first petition sits directly under the Reader rubric, whose 0.2em
+   margin-bottom already supplies the (desktop print) gap; suppress the
+   inter-petition 0.55em here so it doesn't stack and over-space the first one. */
+.pv-rubric + .pv-petition-unit > .pv-petition { margin-top: 0; }
 .pv-response { margin: 0.1em 0 0.2em; }
 
 /* Colour mode — red accents; B&W mutes them and italicises refs. */
