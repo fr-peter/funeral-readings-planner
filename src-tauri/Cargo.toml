@@ -1,6 +1,6 @@
 [package]
 name = "funeral-readings-planner"
-version = "1.0.0"
+version = "1.0.1"
 description = "Funeral Readings Planner — Catholic funeral liturgy reading selection and print"
 authors = ["Fr Peter Do"]
 edition = "2021"
