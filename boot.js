@@ -15,10 +15,14 @@
 // bundle ever loads: we pick here and dynamically import it, so the other
 // layout's code/CSS is never downloaded.
 //
-// Gate on INPUT TYPE + width, not width alone — a desktop user shrinking the
-// window keeps `pointer: fine` and must stay on desktop. `fr.forceLayout`
-// (localStorage) backs a manual "view desktop/mobile site" escape without
-// changing the URL.
+// Gate on INPUT TYPE, not width — a desktop user shrinking the window keeps
+// `pointer: fine` / `hover: hover` and must stay on desktop, while a tablet is
+// touch-primary (`coarse`/`none`) just like a phone and should get mobile. No
+// width clause: it would only re-exclude wide touch devices (tablets, landscape
+// phones), and the mobile layout already self-caps its content (max-width:
+// 34rem, centered), so it renders fine at tablet widths. `fr.forceLayout`
+// (localStorage) backs a manual "view desktop/mobile site" escape for the
+// genuinely-ambiguous cases (e.g. an iPad with a trackpad, kiosks).
 
 const FORCE_KEY = 'fr.forceLayout';
 
@@ -27,7 +31,7 @@ function wantsMobile() {
   try { forced = localStorage.getItem(FORCE_KEY); } catch {}
   if (forced === 'mobile') return true;
   if (forced === 'desktop') return false;
-  return window.matchMedia('(pointer: coarse) and (hover: none) and (max-width: 600px)').matches;
+  return window.matchMedia('(pointer: coarse) and (hover: none)').matches;
 }
 
 // Manual escape hatch (a proper UI link comes with the mobile chrome later).
